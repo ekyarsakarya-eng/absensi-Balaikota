@@ -5,216 +5,106 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Absensi Balaikota</title>
   <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8B0000">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
    .bg-merah { background: linear-gradient(135deg, #8B0000, #B22222); }
    .btn-hijau { background: linear-gradient(135deg, #16A34A, #22C55E); }
+   .btn-disabled { background: #D1D5DB; color: #6B7280; cursor: not-allowed; }
   </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-gray-100 pb-20">
   <!-- Login Page -->
   <div id="loginPage" class="min-h-screen flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
-      <h1 class="text-2xl font-bold text-center mb-6">Login Absensi</h1>
-      <input id="username" type="text" placeholder="Username" class="w-full p-3 border rounded mb-3">
-      <input id="password" type="password" placeholder="Password" class="w-full p-3 border rounded mb-4">
-      <button onclick="login()" class="w-full bg-merah text-white p-3 rounded font-bold">MASUK</button>
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-sm">
+      <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Login Absensi</h1>
+      <input id="username" type="text" placeholder="Username" class="w-full p-3 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-red-700">
+      <input id="password" type="password" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-red-700">
+      <button onclick="login()" class="w-full bg-merah text-white p-3 rounded-lg font-bold">MASUK</button>
+      <p id="loginError" class="text-red-600 text-sm mt-3 text-center hidden"></p>
     </div>
   </div>
 
   <!-- Main App -->
   <div id="appPage" class="hidden">
-    <header class="bg-merah text-white p-4 flex justify-between items-center">
+    <header class="bg-merah text-white p-4 flex justify-between items-center sticky top-0 z-10">
       <div>
         <p class="font-bold">Hi, <span id="namaUser"></span></p>
         <p class="text-sm" id="tanggal"></p>
       </div>
-      <button onclick="logout()">Logout</button>
+      <button onclick="logout()" class="text-sm bg-white/20 px-3 py-1 rounded">Logout</button>
     </header>
 
     <main class="p-4">
       <!-- Card Jam -->
-      <div class="bg-merah text-white p-6 rounded-2xl mb-4">
-        <p id="statusAbsen">Belum Absen Masuk</p>
-        <p class="text-4xl font-bold" id="jamDigital">07:35:58</p>
+      <div class="bg-merah text-white p-6 rounded-2xl mb-4 shadow-lg">
+        <p id="statusAbsen" class="text-sm opacity-90">Belum Absen Masuk</p>
+        <p class="text-5xl font-bold my-2" id="jamDigital">--:--:--</p>
         <p class="text-sm" id="statusLokasi">📍 Mendeteksi lokasi...</p>
       </div>
 
+      <!-- Info Jam Masuk/Pulang -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-green-50 border border-green-200 p-4 rounded-xl">
+          <p class="text-green-700 text-sm font-semibold">JAM MASUK</p>
+          <p id="jamMasukText" class="text-2xl font-bold text-gray-800">--:--</p>
+        </div>
+        <div class="bg-red-50 border border-red-200 p-4 rounded-xl">
+          <p class="text-red-700 text-sm font-semibold">JAM PULANG</p>
+          <p id="jamPulangText" class="text-2xl font-bold text-gray-800">--:--</p>
+        </div>
+      </div>
+
       <!-- Tombol Absen -->
-      <button id="btnMasuk" onclick="openKamera('masuk')" class="w-full btn-hijau text-white p-5 rounded-2xl mb-3 font-bold text-lg">
+      <button id="btnMasuk" onclick="openKamera('masuk')" class="w-full btn-hijau text-white p-5 rounded-2xl mb-3 font-bold text-lg shadow-lg">
         Absen Masuk
       </button>
-      <button id="btnPulang" onclick="openKamera('pulang')" class="w-full bg-gray-300 text-gray-500 p-5 rounded-2xl mb-4 font-bold text-lg" disabled>
+      <button id="btnPulang" onclick="openKamera('pulang')" class="w-full btn-disabled p-5 rounded-2xl mb-4 font-bold text-lg" disabled>
         Absen Pulang
       </button>
     </main>
 
     <!-- Bottom Nav -->
-    <nav class="fixed bottom-0 w-full bg-white border-t flex justify-around py-2">
-      <button class="text-red-700 font-bold">Home</button>
-      <button onclick="showRekap()">Rekap</button>
-      <button>Patroli</button>
-      <button>Kejadian</button>
-      <button>Pembinaan</button>
+    <nav class="fixed bottom-0 w-full bg-white border-t flex justify-around py-3 z-10">
+      <button class="text-red-700 font-bold flex flex-col items-center text-xs">
+        <span class="text-xl">🏠</span>Home
+      </button>
+      <button onclick="showRekap()" class="text-gray-500 flex flex-col items-center text-xs">
+        <span class="text-xl">📊</span>Rekap
+      </button>
+      <button class="text-gray-500 flex flex-col items-center text-xs">
+        <span class="text-xl">🚶</span>Patroli
+      </button>
+      <button class="text-gray-500 flex flex-col items-center text-xs">
+        <span class="text-xl">⚠️</span>Kejadian
+      </button>
+      <button class="text-gray-500 flex flex-col items-center text-xs">
+        <span class="text-xl">📋</span>Pembinaan
+      </button>
     </nav>
   </div>
 
   <!-- Modal Kamera -->
   <div id="kameraModal" class="hidden fixed inset-0 bg-black z-50">
-    <video id="video" autoplay class="w-full h-full object-cover"></video>
+    <video id="video" autoplay playsinline class="w-full h-full object-cover"></video>
     <canvas id="canvas" class="hidden"></canvas>
-    <div class="absolute bottom-10 w-full text-center">
-      <button onclick="takeSelfie()" class="bg-white rounded-full w-20 h-20"></button>
+    <div class="absolute top-4 left-4 bg-black/50 text-white px-4 py-2 rounded-lg">
+      <p id="kameraInfo" class="font-bold">Absen Masuk</p>
+      <p id="kameraJam" class="text-sm"></p>
+    </div>
+    <div class="absolute bottom-10 w-full flex justify-center gap-8">
+      <button onclick="closeKamera()" class="bg-red-600 text-white rounded-full w-16 h-16 text-2xl">✕</button>
+      <button onclick="takeSelfie()" class="bg-white rounded-full w-20 h-20 border-4 border-gray-300"></button>
     </div>
   </div>
 
-<script>
-const GAS_URL = 'GANTI_URL_GAS_DEPLOY_KAMU';
-let currentUser = null;
-let jenisAbsen = '';
-let lokasi = '';
+  <!-- Loading Overlay -->
+  <div id="loading" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-xl">
+      <p class="font-bold">Mengirim data...</p>
+    </div>
+  </div>
 
-// PWA Force Install
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  showInstallPrompt();
-});
-
-function showInstallPrompt() {
-  if(!window.matchMedia('(display-mode: standalone)').matches) {
-    alert('Untuk menggunakan aplikasi ini, silakan Install ke Home Screen');
-    deferredPrompt.prompt();
-  }
-}
-
-// Jam & Tanggal
-setInterval(() => {
-  const now = new Date();
-  document.getElementById('jamDigital').textContent = now.toLocaleTimeString('id-ID');
-  document.getElementById('tanggal').textContent = now.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-}, 1000);
-
-// GPS
-navigator.geolocation.getCurrentPosition(pos => {
-  lokasi = `${pos.coords.latitude}, ${pos.coords.longitude}`;
-  document.getElementById('statusLokasi').textContent = '📍 Lokasi terkunci';
-});
-
-async function login() {
-  const res = await fetch(GAS_URL + '?action=login', {
-    method: 'POST',
-    body: JSON.stringify({
-      username: document.getElementById('username').value,
-      password: document.getElementById('password').value
-    })
-  });
-  const data = await res.json();
-  if(data.status == 'success') {
-    currentUser = data.data;
-    localStorage.setItem('user', JSON.stringify(currentUser));
-    document.getElementById('namaUser').textContent = currentUser.nama;
-    document.getElementById('loginPage').classList.add('hidden');
-    document.getElementById('appPage').classList.remove('hidden');
-    cekStatus();
-  } else {
-    alert(data.message);
-  }
-}
-
-async function cekStatus() {
-  const res = await fetch(GAS_URL + '?action=cekStatus', {
-    method: 'POST',
-    body: JSON.stringify({username: currentUser.username})
-  });
-  const data = await res.json();
-  if(data.data.sudahMasuk) {
-    document.getElementById('btnMasuk').disabled = true;
-    document.getElementById('btnMasuk').classList.add('bg-gray-300','text-gray-500');
-    document.getElementById('btnMasuk').classList.remove('btn-hijau');
-    document.getElementById('btnPulang').disabled = false;
-    document.getElementById('btnPulang').classList.remove('bg-gray-300','text-gray-500');
-    document.getElementById('btnPulang').classList.add('btn-hijau');
-    document.getElementById('statusAbsen').textContent = 'Sudah Absen Masuk: ' + data.data.jamMasuk;
-  }
-  if(data.data.sudahPulang) {
-    document.getElementById('btnPulang').disabled = true;
-    document.getElementById('btnPulang').classList.add('bg-gray-300','text-gray-500');
-  }
-}
-
-async function openKamera(jenis) {
-  jenisAbsen = jenis;
-  document.getElementById('kameraModal').classList.remove('hidden');
-  const stream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'user'}});
-  document.getElementById('video').srcObject = stream;
-}
-
-function takeSelfie() {
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0);
-  
-  // Watermark TimeMark
-  const now = new Date();
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(0, canvas.height-80, canvas.width, 80);
-  ctx.fillStyle = 'white';
-  ctx.font = '20px Arial';
-  ctx.fillText(currentUser.nama, 20, canvas.height-50);
-  ctx.fillText(now.toLocaleString('id-ID'), 20, canvas.height-20);
-  ctx.fillText(lokasi, 20, canvas.height-5);
-  
-  const fotoBase64 = canvas.toDataURL('image/jpeg');
-  kirimAbsen(fotoBase64);
-  video.srcObject.getTracks().forEach(track => track.stop());
-  document.getElementById('kameraModal').classList.add('hidden');
-}
-
-async function kirimAbsen(foto) {
-  const action = jenisAbsen == 'masuk'? 'absenMasuk' : 'absenPulang';
-  const res = await fetch(GAS_URL + '?action=' + action, {
-    method: 'POST',
-    body: JSON.stringify({
-      username: currentUser.username,
-      foto: foto,
-      lokasi: lokasi
-    })
-  });
-  const data = await res.json();
-  if(data.status == 'success') {
-    alert('Absen berhasil jam ' + data.data.jam);
-    cekStatus();
-    showRekap();
-  }
-}
-
-function showRekap() {
-  window.location.href = 'rekap.html';
-}
-
-function logout() {
-  localStorage.removeItem('user');
-  location.reload();
-}
-
-// Cek login
-if(localStorage.getItem('user')) {
-  currentUser = JSON.parse(localStorage.getItem('user'));
-  document.getElementById('namaUser').textContent = currentUser.nama;
-  document.getElementById('loginPage').classList.add('hidden');
-  document.getElementById('appPage').classList.remove('hidden');
-  cekStatus();
-}
-
-// Register Service Worker
-if('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
-</script>
+<script src="app.js"></script>
 </body>
 </html>
