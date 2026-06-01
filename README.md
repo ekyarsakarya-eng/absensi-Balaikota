@@ -1,2 +1,0 @@
-# absensi-Balaikota
-absensi balaikota
