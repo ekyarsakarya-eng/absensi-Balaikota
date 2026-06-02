@@ -1,21 +1,22 @@
 {
-  "name": "Absensi Karyawan BLKT",
-  "short_name": "Absensi BLKT",
-  "start_url": "/index.html/",
-  "scope": "/absensi-Balaikota/",
-  "display": "standalone",
-  "background_color": "#800000",
-  "theme_color": "#800000",
-  "id": "/absensi-Balaikota/",
+"name":"Absensi Karyawan Balaikota",
+"short_name":"Absensi BLKT",
+"description":"Aplikasi Absensi Karyawan dengan GPS & Selfie",
+"start_url":"./index.html",
+"scope":"./",
+"display":"standalone",
+"background_color":"#800000",
+"theme_color":"#800000",
+"orientation":"portrait",
   "icons": [
     {
-      "src": "/absensi-Balaikota/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/absensi-Balaikota/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
