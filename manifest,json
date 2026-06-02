@@ -1,34 +1,20 @@
 {
-"name"
-:
-"Absensi Karyawan BLKT",
-"short_name"
-:
-"Absensi BLKT",
-"start_url"
-:
-"/absensi-Balaikota/",
-"display"
-:
-"standalone",
-"background_color"
-:
-"#800000",
-"theme_color"
-:
-"#800000",
-"scope"
-:
-"/absensi-Balaikota/",
+  "name": "Absensi Karyawan BLKT",
+  "short_name": "Absensi BLKT",
+  "start_url": "/absensi-Balaikota/",
+  "display": "standalone",
+  "background_color": "#800000",
+  "theme_color": "#800000",
+  "scope": "/absensi-Balaikota/",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/absensi-Balaikota/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/absensi-Balaikota/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
