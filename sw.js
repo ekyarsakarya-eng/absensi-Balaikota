@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absensi-blkt-v1';
+const CACHE_NAME = 'absensi-blkt-v3';
 const urlsToCache = [
   '/absensi-Balaikota/',
   '/absensi-Balaikota/index.html',
