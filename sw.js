@@ -1,7 +1,6 @@
 const CACHE_NAME = 'absensi-blkt-v6';
 const urlsToCache = [
   '/absensi-Balaikota/',
-  '/absensi-Balaikota/index.html',
   '/absensi-Balaikota/app.js',
   '/absensi-Balaikota/icon-192.png',
   '/absensi-Balaikota/icon-512.png',
