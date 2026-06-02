@@ -6,6 +6,7 @@
   "background_color": "#800000",
   "theme_color": "#800000",
   "scope": "/absensi-Balaikota/",
+  "id": "/absensi-Balaikota/",
   "icons": [
     {
       "src": "/absensi-Balaikota/icon-192.png",
