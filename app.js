@@ -16,7 +16,7 @@ let dataPatroli = [];
 let dataKejadian = [];
 let dataPembinaan = [];
 
-// === PWA INSTALL ===
+// === PWA INSTALL === 
 let deferredPrompt;
 const installPopup = document.getElementById('installPopup');
 const btnInstall = document.getElementById('btnInstall');
@@ -27,6 +27,7 @@ const isInStandaloneMode = () =>
   document.referrer.includes('android-app://');
 
 window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('beforeinstallprompt fired'); // Buat debug
   e.preventDefault();
   deferredPrompt = e;
   if (!isInStandaloneMode()) {
@@ -36,16 +37,20 @@ window.addEventListener('beforeinstallprompt', (e) => {
 });
 
 btnInstall?.addEventListener('click', async () => {
+  installPopup.classList.add('hidden');
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   const { outcome } = await deferredPrompt.userChoice;
-  if (outcome === 'accepted') installPopup.classList.add('hidden');
+  console.log(`User: ${outcome}`);
   deferredPrompt = null;
 });
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(e => console.log(e));
+    // INI YANG BENER: pake path absolut
+    navigator.serviceWorker.register('/absensi-Balaikota/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(e => console.log('SW failed:', e));
   });
 }
 
