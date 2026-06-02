@@ -1,11 +1,11 @@
 {
   "name": "Absensi Karyawan BLKT",
   "short_name": "Absensi BLKT",
-  "start_url": "/absensi-Balaikota/",
+  "start_url": "/index.html/",
+  "scope": "/absensi-Balaikota/",
   "display": "standalone",
   "background_color": "#800000",
   "theme_color": "#800000",
-  "scope": "/absensi-Balaikota/",
   "id": "/absensi-Balaikota/",
   "icons": [
     {
