@@ -1406,19 +1406,16 @@ async function cekStatus() {
   }
 }
 
-async function api(aksi, payload = {}) {
+async function api(action, data = {}) {
   try {
-    const response = await fetch(URL_GAS, {
+    const res = await fetch(URL_GAS, {
       method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ aksi, data: payload })
+      body: JSON.stringify({action, ...data})
     });
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('API error:', error);
-    return { status: 'error', message: 'Koneksi internet bermasalah / GAS Error: ' + error.message };
+    return await res.json();
+  } catch(e) {
+    toast('Koneksi gagal: ' + e.message);
+    return {status: 'error', message: e.message};
   }
 }
 
