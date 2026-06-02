@@ -1,22 +1,25 @@
 {
   "name": "Absensi Karyawan BLKT",
-  "short_name": "Absensi",
+  "short_name": "Absensi BLKT",
   "description": "Aplikasi Absensi Karyawan Balaikota",
-  "start_url": "./index.html",
+  "start_url": "/absensi-Balaikota/",
   "display": "standalone",
   "background_color": "#800000",
   "theme_color": "#800000",
   "orientation": "portrait",
+  "scope": "/absensi-Balaikota/",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
