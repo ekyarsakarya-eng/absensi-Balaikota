@@ -455,7 +455,7 @@ async function capture() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Proses...';
 
   const ctx = canvas.getContext('2d');
-  // === FIX VIVO: max 800px, bukan 1024 ===
+  // === FIX UTAMA: turunin ke 800px ===
   const MAX_WIDTH = 800;
   let width = video.videoWidth;
   let height = video.videoHeight;
@@ -469,13 +469,10 @@ async function capture() {
   canvas.height = height;
   ctx.drawImage(video, 0, 0, width, height);
 
-  // TIMEMARK diperkecil biar enteng
+  // Timemark kecil biar enteng
   const scale = width / 640;
   ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
   ctx.fillRect(8 * scale, height - 85 * scale, 280 * scale, 75 * scale);
-  ctx.strokeStyle = "#800000";
-  ctx.lineWidth = 3 * scale;
-  ctx.fillRect(8 * scale, height - 85 * scale, 3 * scale, 75 * scale);
   ctx.fillStyle = "#ffffff";
   ctx.font = `bold ${11 * scale}px Arial`;
   ctx.fillText(new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }), 18 * scale, height - 62 * scale);
@@ -489,29 +486,28 @@ async function capture() {
   ctx.font = `9px Courier New`;
   ctx.fillText(`GPS: ${currentLocation.lat},${currentLocation.long}`, 18 * scale, height - 13 * scale);
 
-  // === KOMPRES JADI JPEG 75% - INI KUNCINYA VIVO ===
+  // === KOMPRES JADI 120KB ===
   const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
   closeCam();
 
   if (currentCamMode === 'absen') {
-    const kirimData = {
+    const res = await api('absen', {
       username: user.username,
       tipeAbsen: currentType,
       foto: fotoBase64,
       lat: currentLocation.lat,
       long: currentLocation.long
-    };
-    const res = await api('absen', kirimData);
+    });
     toast(res.message);
     if (res.status === 'success') cekStatus();
   } else if (currentCamMode === 'patroli') {
     document.getElementById('patroliFotoBase64').value = fotoBase64;
     document.getElementById('previewPatroli').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-    toast('Foto patroli berhasil diambil');
+    toast('Foto patroli berhasil');
   } else if (currentCamMode === 'kejadian') {
     document.getElementById('kejadianFotoBase64').value = fotoBase64;
     document.getElementById('previewKejadian').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-    toast('Foto kejadian berhasil diambil');
+    toast('Foto kejadian berhasil');
   }
 
   btn.disabled = false;
@@ -1328,7 +1324,7 @@ async function uploadFotoProfil(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  // Kompres dulu biar Vivo kuat
+  // Kompres dulu
   const img = await createImageBitmap(file);
   const max = 600;
   const scale = Math.min(1, max / Math.max(img.width, img.height));
@@ -1344,7 +1340,7 @@ async function uploadFotoProfil(event) {
     user.foto = res.urlFoto;
     localStorage.setItem('user', JSON.stringify(user));
     document.getElementById('avatarNav').src = res.urlFoto;
-    toast('Foto profil berhasil diupdate');
+    toast('Foto profil berhasil');
   } else {
     toast(res.message);
   }
