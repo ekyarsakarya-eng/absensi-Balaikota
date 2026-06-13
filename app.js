@@ -421,54 +421,8 @@ function openCam() {
       document.getElementById('video').srcObject = s;
     })
 .catch(err => {
-      console.log('getUserMedia gagal:', err);
-      toast('Izin kamera diblokir, pakai kamera HP...');
+      toast('Gagal mengakses kamera: ' + err.message);
       closeCam();
-      // === FALLBACK UNTUK VIVO Y19 ===
-      let fallback = document.getElementById('fallbackCamera');
-      if (!fallback) {
-        fallback = document.createElement('input');
-        fallback.type = 'file';
-        fallback.id = 'fallbackCamera';
-        fallback.accept = 'image/*';
-        fallback.capture = 'environment';
-        fallback.style.display = 'none';
-        document.body.appendChild(fallback);
-      }
-      fallback.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const img = await createImageBitmap(file);
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const MAX_WIDTH = 800;
-        let w = img.width, h = img.height;
-        if (w > MAX_WIDTH) { h = Math.round(h * MAX_WIDTH / w); w = MAX_WIDTH; }
-        canvas.width = w; canvas.height = h;
-        ctx.drawImage(img, 0, 0, w, h);
-        // timemark sederhana
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(8, h-70, 260, 60);
-        ctx.fillStyle = "#fff";
-        ctx.font = "12px Arial";
-        ctx.fillText(new Date().toLocaleString('id-ID'), 15, h-45);
-        ctx.fillText(user.nama, 15, h-25);
-        const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
-        if (currentCamMode === 'absen') {
-          const res = await api('absen', { username: user.username, tipeAbsen: currentType, foto: fotoBase64, lat: currentLocation.lat, long: currentLocation.long });
-          toast(res.message);
-          if (res.status === 'success') cekStatus();
-        } else if (currentCamMode === 'patroli') {
-          document.getElementById('patroliFotoBase64').value = fotoBase64;
-          document.getElementById('previewPatroli').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-          toast('Foto patroli berhasil');
-        } else if (currentCamMode === 'kejadian') {
-          document.getElementById('kejadianFotoBase64').value = fotoBase64;
-          document.getElementById('previewKejadian').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-          toast('Foto kejadian berhasil');
-        }
-      };
-      fallback.click();
     });
 }
 
@@ -501,7 +455,7 @@ async function capture() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Proses...';
 
   const ctx = canvas.getContext('2d');
-  // === FIX VIVO Y19: max 800px ===
+  // === FIX UTAMA: turunin ke 800px ===
   const MAX_WIDTH = 800;
   let width = video.videoWidth;
   let height = video.videoHeight;
@@ -515,7 +469,7 @@ async function capture() {
   canvas.height = height;
   ctx.drawImage(video, 0, 0, width, height);
 
-  // TIMEMARK diperkecil
+  // Timemark kecil biar enteng
   const scale = width / 640;
   ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
   ctx.fillRect(8 * scale, height - 85 * scale, 280 * scale, 75 * scale);
@@ -532,31 +486,967 @@ async function capture() {
   ctx.font = `9px Courier New`;
   ctx.fillText(`GPS: ${currentLocation.lat},${currentLocation.long}`, 18 * scale, height - 13 * scale);
 
-  // === KOMPRES JADI 75% ===
+  // === KOMPRES JADI 120KB ===
   const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
   closeCam();
 
   if (currentCamMode === 'absen') {
-    const kirimData = {
+    const res = await api('absen', {
       username: user.username,
       tipeAbsen: currentType,
       foto: fotoBase64,
       lat: currentLocation.lat,
       long: currentLocation.long
-    };
-    const res = await api('absen', kirimData);
+    });
     toast(res.message);
     if (res.status === 'success') cekStatus();
   } else if (currentCamMode === 'patroli') {
     document.getElementById('patroliFotoBase64').value = fotoBase64;
     document.getElementById('previewPatroli').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-    toast('Foto patroli berhasil diambil');
+    toast('Foto patroli berhasil');
   } else if (currentCamMode === 'kejadian') {
     document.getElementById('kejadianFotoBase64').value = fotoBase64;
     document.getElementById('previewKejadian').innerHTML = `<img src="${fotoBase64}" class="w-full h-full object-cover">`;
-    toast('Foto kejadian berhasil diambil');
+    toast('Foto kejadian berhasil');
   }
 
   btn.disabled = false;
   btn.innerHTML = '<i class="fa-solid fa-camera mr-1"></i>Ambil Foto';
 }
+
+function renderPage() {
+  switch(currentPage) {
+    case 'home': return renderHome();
+    case 'rekap': return renderRekap();
+    case 'patroli': return renderPatroli();
+    case 'kejadian': return renderKejadian();
+    case 'pembinaan': return renderPembinaan();
+    default: return renderHome();
+  }
+}
+
+function renderHome() {
+  const { bisaIn = false, bisaOut = false, lock12Jam = false, sisaJam = 0, jamMasuk = '--:--', jamPulang = '--:--' } = statusServer;
+
+  return `
+  <div class="bg-gradient-to-br from-red-800 to-red-900 text-white p-5 rounded-3xl shadow-2xl mb-5 relative overflow-hidden">
+    <div class="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+    <div class="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-12 -mb-12"></div>
+    <div class="relative z-10">
+      <p class="text-sm opacity-90 mb-1" id="statusKerja">${getStatusText(jamMasuk, jamPulang)}</p>
+      <p class="text-5xl font-black mb-2 tracking-tight" id="jamRealtime">00:00:00</p>
+      <div class="flex items-center gap-2 text-xs bg-white/20 w-fit px-3 py-1 rounded-full">
+        <i class="fa-solid fa-location-dot animate-pulse"></i>
+        <span id="lokasiStatus">Mendeteksi lokasi...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mb-5">
+    <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/30 p-4 rounded-3xl border-2 border-green-200 dark:border-green-800 text-center relative overflow-hidden">
+      <div class="absolute top-2 right-2 w-8 h-8 bg-green-500/20 rounded-full"></div>
+      <i class="fa-solid fa-right-to-bracket text-green-600 dark:text-green-400 text-xl mb-2"></i>
+      <p class="text-xs text-green-700 dark:text-green-400 font-bold uppercase">Jam Masuk</p>
+      <p class="text-3xl font-black text-green-800 dark:text-green-300 mt-1">${jamMasuk}</p>
+    </div>
+    <div class="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/30 p-4 rounded-3xl border-2 border-red-200 dark:border-red-800 text-center relative overflow-hidden">
+      <div class="absolute top-2 right-2 w-8 h-8 bg-red-500/20 rounded-full"></div>
+      <i class="fa-solid fa-right-from-bracket text-red-600 dark:text-red-400 text-xl mb-2"></i>
+      <p class="text-xs text-red-700 dark:text-red-400 font-bold uppercase">Jam Pulang</p>
+      <p class="text-3xl font-black text-red-800 dark:text-red-300 mt-1">${jamPulang}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="bg-white dark:bg-gray-800 p-3 rounded-2xl text-center border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+      <i class="fa-solid fa-calendar-check text-red-800 text-lg mb-1"></i>
+      <p class="text-2xl font-black text-gray-800 dark:text-white" id="statHadir">-</p>
+      <p class="text-xs text-gray-500">Hadir</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 p-3 rounded-2xl text-center border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+      <i class="fa-solid fa-business-time text-amber-600 text-lg mb-1"></i>
+      <p class="text-2xl font-black text-gray-800 dark:text-white" id="statTelat">-</p>
+      <p class="text-xs text-gray-500">Telat</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 p-3 rounded-2xl text-center border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition">
+      <i class="fa-solid fa-route text-blue-600 text-lg mb-1"></i>
+      <p class="text-2xl font-black text-gray-800 dark:text-white" id="statPatroli">-</p>
+      <p class="text-xs text-gray-500">Patroli</p>
+    </div>
+  </div>
+
+  <div id="gpsCard" class="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 p-4 rounded-2xl mb-5 flex items-center gap-3 transition-all">
+    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-800 rounded-2xl flex items-center justify-center">
+      <i class="fa-solid fa-satellite-dish text-blue-600 dark:text-blue-300 text-xl"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Status Lokasi</p>
+      <p class="text-sm text-gray-700 dark:text-gray-300 font-semibold" id="gpsText">Mengunci GPS...</p>
+    </div>
+  </div>
+
+   <div class="space-y-3 mb-5">
+    <button onclick="bukaKameraAbsen('Masuk')" ${!bisaIn? 'disabled' : ''}
+      class="w-full py-5 rounded-3xl font-bold text-white transition-all duration-300 flex items-center gap-4 shadow-xl
+      ${!bisaIn? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-none text-gray-500' : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:scale-[1.02] active:scale-[0.98] hover:shadow-green-500/50'}">
+      <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center ml-1">
+        <i class="fa-solid fa-fingerprint text-3xl"></i>
+      </div>
+      <div class="text-left flex-1">
+        <p class="text-xl">Absen Masuk</p>
+        <p class="text-xs opacity-80">Tap untuk scan wajah & GPS</p>
+      </div>
+      ${bisaIn? '<div class="w-3 h-3 bg-white rounded-full animate-ping mr-4"></div>' : ''}
+    </button>
+
+    <button onclick="bukaKameraAbsen('Pulang')" ${!bisaOut? 'disabled' : ''}
+      class="w-full py-5 rounded-3xl font-bold text-white transition-all duration-300 flex items-center gap-4 shadow-xl
+      ${!bisaOut? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed shadow-none text-gray-500' : 'bg-gradient-to-r from-red-800 to-red-900 hover:scale-[1.02] active:scale-[0.98] hover:shadow-red-800/50'}">
+      <div class="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center ml-1">
+        <i class="fa-solid fa-door-open text-3xl"></i>
+      </div>
+      <div class="text-left flex-1">
+        <p class="text-xl">Absen Pulang</p>
+        <p class="text-xs opacity-80">Selesaikan shift hari ini</p>
+      </div>
+      ${bisaOut? '<div class="w-3 h-3 bg-white rounded-full animate-ping mr-4"></div>' : ''}
+    </button>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+    <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+      <i class="fa-solid fa-clock-rotate-left text-red-800"></i> Aktivitas Terakhir
+    </p>
+    <div id="aktivitasTerakhir">
+      <div class="text-center text-gray-400 py-4">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function getStatusText(jamMasuk, jamPulang) {
+  if (jamMasuk === '--:--') return 'Belum Absen Masuk';
+  if (jamMasuk!== '--:--' && jamPulang === '--:--') return 'Sedang Bekerja';
+  return 'Shift Selesai 👍';
+}
+
+function updateJamRealtime() {
+  const el = document.getElementById('jamRealtime');
+  const statusEl = document.getElementById('statusKerja');
+  if (!el ||!statusServer) return;
+
+  const now = new Date();
+  el.textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  if (statusServer.jamMasuk!== '--:--' && statusServer.jamPulang === '--:--') {
+    const [jam, menit] = statusServer.jamMasuk.split(':');
+    const masuk = new Date();
+    masuk.setHours(parseInt(jam), parseInt(menit), 0);
+    const durasi = Math.floor((now - masuk) / 60000);
+    const jamKerja = Math.floor(durasi / 60);
+    const menitKerja = durasi % 60;
+    if (statusEl) statusEl.textContent = `Sudah kerja ${jamKerja}j ${menitKerja}m`;
+  }
+}
+setInterval(updateJamRealtime, 1000);
+
+async function loadHomeStats() {
+  try {
+    const [rekap, patroli] = await Promise.all([
+      api('getRekap', { username: user.username }),
+      api('getPatroli', { username: user.username })
+    ]);
+
+    const statHadir = document.getElementById('statHadir');
+    const statTelat = document.getElementById('statTelat');
+    const statPatroli = document.getElementById('statPatroli');
+
+    if (rekap.status === 'success' && statHadir) {
+      const hadir = rekap.data.filter(r => r.keterangan === 'IN' && r.jam && r.jam!== '--:--').length;
+      statHadir.textContent = hadir;
+      if(statTelat) statTelat.textContent = 0;
+    }
+
+    if (patroli.status === 'success' && statPatroli) {
+      statPatroli.textContent = patroli.data.length;
+
+      const aktivitasEl = document.getElementById('aktivitasTerakhir');
+      if (aktivitasEl && patroli.data.length > 0) {
+        const last = patroli.data[0];
+        const waktu = new Date(last.timestamp);
+        const selisih = Math.floor((new Date() - waktu) / 60000);
+        const waktuText = selisih < 60? `${selisih} menit lalu` : `${Math.floor(selisih/60)} jam lalu`;
+
+        aktivitasEl.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl flex items-center justify-center">
+              <i class="fa-solid fa-route"></i>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm font-semibold text-gray-800 dark:text-white">Patroli ${last.lokasi}</p>
+              <p class="text-xs text-gray-500">${waktuText}</p>
+            </div>
+          </div>
+        `;
+      }
+    }
+  } catch(e) {
+    console.error('Load stats error:', e);
+  }
+}
+
+function updateGpsCard(jarak, radius) {
+  const gpsText = document.getElementById('gpsText');
+  const gpsCard = document.getElementById('gpsCard');
+  if (!gpsText ||!gpsCard) return;
+
+  if (jarak <= radius) {
+    gpsText.innerHTML = `<span class="text-green-600 dark:text-green-400 font-bold">Dalam radius ${Math.round(jarak)}m ✓</span>`;
+    gpsCard.className = 'bg-green-50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 p-4 rounded-2xl mb-5 flex items-center gap-3 transition-all';
+  } else {
+    gpsText.innerHTML = `<span class="text-red-600 dark:text-red-400 font-bold">Diluar radius ${Math.round(jarak)}m</span>`;
+    gpsCard.className = 'bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 p-4 rounded-2xl mb-5 flex items-center gap-3 transition-all';
+  }
+}
+
+function renderRekap() {
+  return `
+  <div class="space-y-4">
+    <div class="flex justify-between items-center">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Rekap Absensi</h2>
+      <button onclick="loadRekap()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition">
+        <i class="fa-solid fa-refresh mr-1"></i>Refresh
+      </button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Bulan: ${new Date().toLocaleDateString('id-ID', {month: 'long', year: 'numeric'})}</p>
+      <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+          <p class="text-2xl font-bold text-green-600" id="totalHadir">-</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Hadir</p>
+        </div>
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+          <p class="text-2xl font-bold text-yellow-600" id="totalIzin">-</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Izin</p>
+        </div>
+        <div class="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
+          <p class="text-2xl font-bold text-red-600" id="totalAlpha">-</p>
+          <p class="text-xs text-gray-600 dark:text-gray-400">Alpha</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
+      <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Riwayat Absensi Anda</p>
+      <div class="space-y-2" id="listRekap">
+        <div class="text-center text-gray-400 py-8">
+          <i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
+          <p class="text-sm">Loading data...</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadRekap() {
+  const listEl = document.getElementById('listRekap');
+  if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8"><i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i><p class="text-sm">Loading...</p></div>';
+
+  try {
+    const res = await api('getRekap', { username: user.username });
+
+    if (res.status === 'success') {
+      dataRekap = res.data || [];
+
+      let hadir = 0;
+      dataRekap.forEach(r => {
+        if (r.keterangan === 'IN' && r.jam && r.jam!== '--:--') hadir++;
+      });
+
+      document.getElementById('totalHadir').textContent = hadir;
+      document.getElementById('totalIzin').textContent = 0;
+      document.getElementById('totalAlpha').textContent = 0;
+
+      if (dataRekap.length > 0) {
+        const grouped = {};
+        dataRekap.forEach(r => {
+          const d = new Date(r.tanggal + 'T00:00:00');
+          const tglKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          if (!grouped[tglKey]) grouped[tglKey] = [];
+          grouped[tglKey].push(r);
+        });
+
+        const last7Keys = Object.keys(grouped).sort().slice(-7).reverse();
+
+        listEl.innerHTML = last7Keys.map(key => {
+          const records = grouped[key];
+          const masuk = records.find(r => r.keterangan === 'IN');
+          const pulang = records.find(r => r.keterangan === 'OUT');
+
+          const tglObj = new Date(records[0].tanggal + 'T00:00:00');
+          const tglFormat = tglObj.toLocaleDateString('id-ID', {
+            weekday: 'short', day: '2-digit', month: 'short'
+          });
+
+          return `
+            <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <p class="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">${tglFormat}</p>
+              <div class="flex justify-between items-center mb-1">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-sign-in-alt text-xs"></i>
+                  </div>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Masuk</span>
+                </div>
+                <p class="text-sm font-bold text-gray-800 dark:text-white">${masuk?.jam || '--:--'}</p>
+              </div>
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-sign-out-alt text-xs"></i>
+                  </div>
+                  <span class="text-sm text-gray-700 dark:text-gray-300">Pulang</span>
+                </div>
+                <p class="text-sm font-bold text-gray-800 dark:text-white">${pulang?.jam || '--:--'}</p>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        listEl.innerHTML = `
+          <div class="text-center text-gray-400 py-8">
+            <i class="fa-solid fa-calendar-xmark text-3xl mb-2"></i>
+            <p class="text-sm">Belum ada data absensi</p>
+          </div>
+        `;
+      }
+    } else {
+      throw new Error(res.message || 'Unknown error');
+    }
+  } catch (err) {
+    console.error('Load rekap error:', err);
+    listEl.innerHTML = `
+      <div class="text-center text-red-400 py-8">
+        <i class="fa-solid fa-circle-exclamation text-3xl mb-2"></i>
+        <p class="text-sm">Gagal memuat data</p>
+        <p class="text-xs mt-1">${err.message}</p>
+      </div>
+    `;
+  }
+}
+
+function renderPatroli() {
+  return `
+  <div class="space-y-4">
+    <div class="flex justify-between items-center">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Patroli</h2>
+      <button onclick="openFormPatroli()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition">
+        <i class="fa-solid fa-plus mr-1"></i>Tambah
+      </button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
+      <div id="listPatroli" class="space-y-2">
+        <div class="text-center text-gray-400 py-8">
+          <i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
+          <p class="text-sm">Loading data...</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadPatroli() {
+  const res = await api('getPatroli', { username: user.username });
+  const listEl = document.getElementById('listPatroli');
+
+  if (res.status === 'success' && res.data.length > 0) {
+    dataPatroli = res.data;
+    listEl.innerHTML = dataPatroli.map(p => {
+      const tgl = new Date(p.timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'});
+      return `
+        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-800 dark:text-white">${p.lokasi}</p>
+              <p class="text-xs text-red-600 dark:text-red-400 font-semibold">Petugas: ${p.nama}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${tgl}</p>
+            </div>
+            ${p.foto? `<img src="${p.foto}" class="w-12 h-12 rounded-lg object-cover ml-2">` : ''}
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300">${p.keterangan || '-'}</p>
+        </div>
+      `;
+    }).join('');
+  } else {
+    listEl.innerHTML = `
+      <div class="text-center text-gray-400 py-8">
+        <i class="fa-solid fa-route text-3xl mb-2"></i>
+        <p class="text-sm">Belum ada data patroli</p>
+      </div>
+    `;
+  }
+}
+
+function openFormPatroli() {
+  document.getElementById('modalPatroli').classList.replace('hidden', 'flex');
+}
+
+function closeFormPatroli() {
+  document.getElementById('modalPatroli').classList.replace('flex', 'hidden');
+  document.getElementById('patroliLokasi').value = '';
+  document.getElementById('patroliKet').value = '';
+  document.getElementById('patroliFotoBase64').value = '';
+  document.getElementById('previewPatroli').innerHTML = `<div class="text-center text-gray-400"><i class="fa-solid fa-camera text-3xl mb-1"></i><p class="text-xs">Belum ada foto</p></div>`;
+}
+
+async function simpanPatroli() {
+  const btn = document.getElementById('btnSimpanPatroli');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...';
+
+  const lokasi = document.getElementById('patroliLokasi').value.trim();
+  const ket = document.getElementById('patroliKet').value.trim();
+  const fotoBase64 = document.getElementById('patroliFotoBase64').value;
+
+  if (!lokasi) {
+    toast('Lokasi wajib diisi');
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan Patroli';
+    return;
+  }
+  if (!fotoBase64) {
+    toast('Foto bukti wajib diambil');
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan Patroli';
+    return;
+  }
+
+  const res = await api('tambahPatroli', {
+    username: user.username,
+    lokasi: lokasi,
+    keterangan: ket,
+    foto: fotoBase64,
+    lat: currentLocation.lat,
+    long: currentLocation.long
+  });
+
+  if (res.status === 'success') {
+    toast(res.message);
+    closeFormPatroli();
+    loadPatroli();
+  } else {
+    toast(res.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Simpan Patroli';
+}
+
+function renderKejadian() {
+  return `
+  <div class="space-y-4">
+    <div class="flex justify-between items-center">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Laporan Kejadian</h2>
+      <button onclick="openFormKejadian()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition">
+        <i class="fa-solid fa-plus mr-1"></i>Lapor
+      </button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
+      <div id="listKejadian" class="space-y-2">
+        <div class="text-center text-gray-400 py-8">
+          <i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
+          <p class="text-sm">Loading data...</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadKejadian() {
+  const res = await api('getKejadian', { username: user.username });
+  const listEl = document.getElementById('listKejadian');
+
+  if (res.status === 'success' && res.data.length > 0) {
+    dataKejadian = res.data;
+    listEl.innerHTML = dataKejadian.map(k => {
+      const tgl = new Date(k.timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'});
+      return `
+        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <p class="text-sm font-bold text-red-600">${k.jenis}</p>
+              <p class="text-xs text-red-600 dark:text-red-400 font-semibold">Pelapor: ${k.nama}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${tgl} - ${k.lokasi}</p>
+            </div>
+            ${k.foto? `<img src="${k.foto}" class="w-12 h-12 rounded-lg object-cover ml-2">` : ''}
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300">${k.kronologi}</p>
+        </div>
+      `;
+    }).join('');
+  } else {
+    listEl.innerHTML = `
+      <div class="text-center text-gray-400 py-8">
+        <i class="fa-solid fa-triangle-exclamation text-3xl mb-2"></i>
+        <p class="text-sm">Belum ada laporan kejadian</p>
+      </div>
+    `;
+  }
+}
+
+function openFormKejadian() {
+  document.getElementById('modalKejadian').classList.replace('hidden', 'flex');
+}
+
+function closeFormKejadian() {
+  document.getElementById('modalKejadian').classList.replace('flex', 'hidden');
+  document.getElementById('kejadianJenis').value = '';
+  document.getElementById('kejadianLokasi').value = '';
+  document.getElementById('kejadianKronologi').value = '';
+  document.getElementById('kejadianFotoBase64').value = '';
+  document.getElementById('previewKejadian').innerHTML = `<div class="text-center text-gray-400"><i class="fa-solid fa-camera text-3xl mb-1"></i><p class="text-xs">Belum ada foto</p></div>`;
+}
+
+async function simpanKejadian() {
+  const btn = document.getElementById('btnSimpanKejadian');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Mengirim...';
+
+  const jenis = document.getElementById('kejadianJenis').value;
+  const lokasi = document.getElementById('kejadianLokasi').value.trim();
+  const kronologi = document.getElementById('kejadianKronologi').value.trim();
+  const fotoBase64 = document.getElementById('kejadianFotoBase64').value;
+
+  if (!jenis ||!lokasi ||!kronologi) {
+    toast('Jenis, Lokasi, dan Kronologi wajib diisi');
+    btn.disabled = false;
+    btn.innerHTML = 'Kirim Laporan';
+    return;
+  }
+  if (!fotoBase64) {
+    toast('Foto bukti wajib diambil');
+    btn.disabled = false;
+    btn.innerHTML = 'Kirim Laporan';
+    return;
+  }
+
+  const res = await api('tambahKejadian', {
+    username: user.username,
+    jenis: jenis,
+    lokasi: lokasi,
+    kronologi: kronologi,
+    foto: fotoBase64,
+    lat: currentLocation.lat,
+    long: currentLocation.long
+  });
+
+  if (res.status === 'success') {
+    toast(res.message);
+    closeFormKejadian();
+    loadKejadian();
+  } else {
+    toast(res.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Kirim Laporan';
+}
+
+function openFormPembinaan() {
+  document.getElementById('modalPembinaan').classList.replace('hidden', 'flex');
+}
+
+function closeFormPembinaan() {
+  document.getElementById('modalPembinaan').classList.replace('flex', 'hidden');
+  document.getElementById('pembinaanMateri').value = '';
+  document.getElementById('pembinaanPelatih').value = '';
+  document.getElementById('pembinaanNilai').value = '';
+  document.getElementById('pembinaanKet').value = '';
+}
+
+async function simpanPembinaan() {
+  const btn = document.getElementById('btnSimpanPembinaan');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...';
+
+  const materi = document.getElementById('pembinaanMateri').value.trim();
+  const pelatih = document.getElementById('pembinaanPelatih').value.trim();
+  const nilai = document.getElementById('pembinaanNilai').value;
+  const ket = document.getElementById('pembinaanKet').value.trim();
+
+  if (!materi ||!pelatih ||!nilai) {
+    toast('Materi, Pelatih, dan Nilai wajib diisi');
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan';
+    return;
+  }
+
+  const res = await api('tambahPembinaan', {
+    username: user.username,
+    materi: materi,
+    pelatih: pelatih,
+    nilai: nilai,
+    keterangan: ket
+  });
+
+  if (res.status === 'success') {
+    toast(res.message);
+    closeFormPembinaan();
+    loadPembinaan();
+  } else {
+    toast(res.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Simpan';
+}
+
+async function loadPembinaan() {
+  const res = await api('getPembinaan', { username: user.username });
+  const listEl = document.getElementById('listPembinaan');
+
+  if (res.status === 'success' && res.data.length > 0) {
+    dataPembinaan = res.data;
+    listEl.innerHTML = dataPembinaan.map(p => {
+      const tgl = new Date(p.timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: 'short'});
+      return `
+        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-800 dark:text-white">${p.materi}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${tgl} - ${p.pelatih}</p>
+            </div>
+            <div class="bg-red-800 text-white px-3 py-1 rounded-full">
+              <p class="text-sm font-bold">${p.nilai}</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300">${p.keterangan || '-'}</p>
+        </div>
+      `;
+    }).join('');
+  } else {
+    listEl.innerHTML = `
+      <div class="text-center text-gray-400 py-8">
+        <i class="fa-solid fa-user-graduate text-3xl mb-2"></i>
+        <p class="text-sm">Belum ada data pembinaan</p>
+      </div>
+    `;
+  }
+}
+
+function renderPembinaan() {
+  return `
+  <div class="space-y-4">
+    <div class="flex justify-between items-center">
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Pembinaan</h2>
+      <button onclick="openFormPembinaan()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition">
+        <i class="fa-solid fa-plus mr-1"></i>Tambah
+      </button>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
+      <div id="listPembinaan" class="space-y-2">
+        <div class="text-center text-gray-400 py-8">
+          <i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
+          <p class="text-sm">Loading data...</p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function loadPembinaan() {
+  const res = await api('getPembinaan', { username: user.username });
+  const listEl = document.getElementById('listPembinaan');
+
+  if (res.status === 'success' && res.data.length > 0) {
+    dataPembinaan = res.data;
+    listEl.innerHTML = dataPembinaan.map(p => {
+      const tgl = new Date(p.timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: 'short'});
+      return `
+        <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <p class="text-sm font-bold text-gray-800 dark:text-white">${p.materi}</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">${tgl} - ${p.pelatih}</p>
+            </div>
+            <div class="bg-red-800 text-white px-3 py-1 rounded-full">
+              <p class="text-sm font-bold">${p.nilai}</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-600 dark:text-gray-300">${p.keterangan || '-'}</p>
+        </div>
+      `;
+    }).join('');
+  } else {
+    listEl.innerHTML = `
+      <div class="text-center text-gray-400 py-8">
+        <i class="fa-solid fa-user-graduate text-3xl mb-2"></i>
+        <p class="text-sm">Belum ada data pembinaan</p>
+      </div>
+    `;
+  }
+}
+
+function openFormPembinaan() {
+  document.getElementById('modalPembinaan').classList.replace('hidden', 'flex');
+}
+
+function closeFormPembinaan() {
+  document.getElementById('modalPembinaan').classList.replace('flex', 'hidden');
+  document.getElementById('pembinaanMateri').value = '';
+  document.getElementById('pembinaanPelatih').value = '';
+  document.getElementById('pembinaanNilai').value = '';
+  document.getElementById('pembinaanKet').value = '';
+}
+
+async function simpanPembinaan() {
+  const btn = document.getElementById('btnSimpanPembinaan');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...';
+
+  const materi = document.getElementById('pembinaanMateri').value.trim();
+  const pelatih = document.getElementById('pembinaanPelatih').value.trim();
+  const nilai = document.getElementById('pembinaanNilai').value;
+  const ket = document.getElementById('pembinaanKet').value.trim();
+
+  if (!materi ||!pelatih ||!nilai) {
+    toast('Materi, Pelatih, dan Nilai wajib diisi');
+    btn.disabled = false;
+    btn.innerHTML = 'Simpan';
+    return;
+  }
+
+  const res = await api('tambahPembinaan', {
+    username: user.username,
+    materi: materi,
+    pelatih: pelatih,
+    nilai: nilai,
+    keterangan: ket
+  });
+
+  if (res.status === 'success') {
+    toast(res.message);
+    closeFormPembinaan();
+    loadPembinaan();
+  } else {
+    toast(res.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Simpan';
+}
+
+function switchPage(page) {
+  currentPage = page;
+  renderDashboard();
+}
+
+function dapatkanLokasiGPS() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        currentLocation.lat = position.coords.latitude.toFixed(6);
+        currentLocation.long = position.coords.longitude.toFixed(6);
+        currentLocation.alamat = `Lat: ${currentLocation.lat}, Long: ${currentLocation.long}`;
+        const lokasiEl = document.getElementById('lokasiStatus');
+        if (lokasiEl) lokasiEl.textContent = 'Lokasi terkunci';
+        localStorage.setItem('gps', JSON.stringify(currentLocation));
+
+        const setting = await api('getSetting', {});
+        if (setting.lat) {
+          const jarak = hitungJarak(currentLocation.lat, currentLocation.long, setting.lat, setting.long);
+          updateGpsCard(jarak, setting.radius);
+        }
+        const gpsEl = document.getElementById('previewGps');
+        if (gpsEl) gpsEl.innerText = `📍 ${currentLocation.alamat}`;
+      },
+      (error) => {
+        currentLocation.alamat = "GPS terkunci / tidak aktif";
+        const lokasiEl = document.getElementById('lokasiStatus');
+        if (lokasiEl) lokasiEl.textContent = 'GPS off';
+        const gpsEl = document.getElementById('previewGps');
+        if (gpsEl) gpsEl.innerText = `⚠ ${currentLocation.alamat}`;
+      },
+      { enableHighAccuracy: true, timeout: 20000 }
+    );
+  } else {
+    currentLocation.alamat = "Browser tidak mendukung GPS";
+  }
+}
+
+function hitungJarak(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; const p1 = lat1 * Math.PI/180; const p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1) * Math.PI/180; const dl = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function startTimemark() {
+  if (animationFrame) cancelAnimationFrame(animationFrame);
+
+  function update() {
+    const hariEl = document.getElementById('previewHari');
+    const jamEl = document.getElementById('previewJam');
+    const namaEl = document.getElementById('previewNama');
+    const gpsEl = document.getElementById('previewGps');
+
+    if (hariEl && jamEl && namaEl) {
+      const now = new Date();
+      hariEl.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      jamEl.innerText = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      namaEl.innerText = user? `👤 ${user.nama}` : '';
+      if (gpsEl) gpsEl.innerText = `📍 ${currentLocation.alamat}`;
+    }
+
+    const modalCam = document.getElementById('modalCam');
+    if (modalCam &&!modalCam.classList.contains('hidden')) {
+      animationFrame = requestAnimationFrame(update);
+    }
+  }
+  update();
+}
+
+function openProfil() { document.getElementById('modalProfil').classList.replace('hidden', 'flex'); }
+function closeProfil() { document.getElementById('modalProfil').classList.replace('flex', 'hidden'); }
+function openEditProfil() { closeProfil(); document.getElementById('modalEditProfil').classList.replace('hidden', 'flex'); }
+function closeEditProfil() { document.getElementById('modalEditProfil').classList.replace('flex', 'hidden'); }
+function openGantiPassword() { closeProfil(); document.getElementById('modalGantiPassword').classList.replace('hidden', 'flex'); }
+function closeGantiPassword() { document.getElementById('modalGantiPassword').classList.replace('flex', 'hidden'); }
+function gantiFotoProfil() { document.getElementById('inputFotoProfil').click(); }
+
+async function uploadFotoProfil(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Kompres dulu
+  const img = await createImageBitmap(file);
+  const max = 600;
+  const scale = Math.min(1, max / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width * scale;
+  canvas.height = img.height * scale;
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  const base64 = canvas.toDataURL('image/jpeg', 0.8);
+
+  document.getElementById('fotoProfil').src = base64;
+  const res = await api('uploadFoto', { username: user.username, fotoBase64: base64 });
+  if (res.status === 'success') {
+    user.foto = res.urlFoto;
+    localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('avatarNav').src = res.urlFoto;
+    toast('Foto profil berhasil');
+  } else {
+    toast(res.message);
+  }
+}
+
+async function simpanProfil() {
+  const btn = document.getElementById('btnSimpanProfil');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Menyimpan...';
+
+  const d = {
+    username: user.username,
+    nama: document.getElementById('editNama').value,
+    ktp: document.getElementById('editKtp').value,
+    hp: document.getElementById('editHp').value,
+    alamat: document.getElementById('editAlamat').value,
+    ttl: document.getElementById('editTtl').value,
+    bank: document.getElementById('editBank').value,
+    rekening: document.getElementById('editRek').value
+  };
+  const res = await api('updateProfil', d);
+  if(res.status==='success') {
+    user={...user,...d};
+    localStorage.setItem('user', JSON.stringify(user));
+    closeEditProfil();
+    renderDashboard();
+    toast(res.message);
+  } else {
+    toast(res.message);
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Simpan';
+}
+
+async function gantiPassword() {
+  const btn = document.getElementById('btnGantiPass');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Update...';
+
+  const res = await api('gantiPassword', {
+    username: user.username,
+    passLama: document.getElementById('passLama').value,
+    passBaru: document.getElementById('passBaru').value
+  });
+  toast(res.message);
+  if(res.status==='success') {
+    document.getElementById('passLama').value = '';
+    document.getElementById('passBaru').value = '';
+    closeGantiPassword();
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'Update';
+}
+
+async function cekStatus() {
+  try {
+    const res = await api('cekStatus', { username: user.username });
+    if (res.status === 'success') {
+      statusServer = res;
+      const contentArea = document.getElementById('contentArea');
+      if (contentArea && currentPage === 'home') {
+        contentArea.innerHTML = renderPage();
+        loadHomeStats();
+      }
+    } else {
+      toast(res.message);
+    }
+  } catch(e) {
+    console.error('Cek status error:', e);
+  }
+}
+
+async function api(action, data = {}) {
+  try {
+    const res = await fetch(URL_GAS, {
+      method: 'POST',
+      body: JSON.stringify({action, ...data})
+    });
+    return await res.json();
+  } catch(e) {
+    toast('Koneksi gagal: ' + e.message);
+    return {status: 'error', message: e.message};
+  }
+}
+
+console.log('Starting app...');
+
+// === HANDLE BACK BUTTON HP - LANGSUNG HOME ===
+window.addEventListener('popstate', function(event) {
+  if (currentPage !== 'home') {
+    currentPage = 'home';
+    renderDashboard();
+  }
+  // Push state lagi biar back ga langsung keluar
+  history.pushState({ page: 'home' }, '', '');
+});
+
+// Set initial state
+history.pushState({ page: currentPage }, '', '');
+
+const originalSwitchPage = switchPage;
+switchPage = function(page) {
+  originalSwitchPage(page);
+  history.pushState({ page: page }, '', '');
+}
+
+console.log('Starting app...');
+render();
+render(); 
