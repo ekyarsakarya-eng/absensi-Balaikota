@@ -455,12 +455,13 @@ async function capture() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Proses...';
 
   const ctx = canvas.getContext('2d');
-  const MAX_WIDTH = 1024;
+  // === FIX VIVO: max 800px, bukan 1024 ===
+  const MAX_WIDTH = 800;
   let width = video.videoWidth;
   let height = video.videoHeight;
 
   if (width > MAX_WIDTH) {
-    height = height * (MAX_WIDTH / width);
+    height = Math.round(height * (MAX_WIDTH / width));
     width = MAX_WIDTH;
   }
 
@@ -468,29 +469,28 @@ async function capture() {
   canvas.height = height;
   ctx.drawImage(video, 0, 0, width, height);
 
-  // TIMEMARK
+  // TIMEMARK diperkecil biar enteng
   const scale = width / 640;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-  ctx.fillRect(10 * scale, height - 110 * scale, 320 * scale, 100 * scale);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+  ctx.fillRect(8 * scale, height - 85 * scale, 280 * scale, 75 * scale);
   ctx.strokeStyle = "#800000";
-  ctx.lineWidth = 4 * scale;
-  ctx.strokeRect(10 * scale, height - 110 * scale, 4 * scale, 100 * scale);
+  ctx.lineWidth = 3 * scale;
+  ctx.fillRect(8 * scale, height - 85 * scale, 3 * scale, 75 * scale);
   ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${14 * scale}px Arial`;
-  const tglTeks = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  ctx.fillText(tglTeks, 25 * scale, height - 85 * scale);
+  ctx.font = `bold ${11 * scale}px Arial`;
+  ctx.fillText(new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }), 18 * scale, height - 62 * scale);
   ctx.fillStyle = "#facc15";
-  ctx.font = `bold ${16 * scale}px Arial`;
-  const jamTeks = new Date().toLocaleTimeString('id-ID');
-  ctx.fillText(jamTeks, 25 * scale, height - 65 * scale);
+  ctx.font = `bold ${13 * scale}px Arial`;
+  ctx.fillText(new Date().toLocaleTimeString('id-ID'), 18 * scale, height - 44 * scale);
   ctx.fillStyle = "#ffffff";
-  ctx.font = `${13 * scale}px Arial`;
-  ctx.fillText(`Nama: ${user.nama}`, 25 * scale, height - 45 * scale);
+  ctx.font = `${10 * scale}px Arial`;
+  ctx.fillText(`Nama: ${user.nama}`, 18 * scale, height - 28 * scale);
   ctx.fillStyle = "#4ade80";
-  ctx.font = `mono ${11 * scale}px Courier New`;
-  ctx.fillText(`GPS: ${currentLocation.lat}, ${currentLocation.long}`, 25 * scale, height - 20 * scale);
+  ctx.font = `9px Courier New`;
+  ctx.fillText(`GPS: ${currentLocation.lat},${currentLocation.long}`, 18 * scale, height - 13 * scale);
 
-  const fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
+  // === KOMPRES JADI JPEG 75% - INI KUNCINYA VIVO ===
+  const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
   closeCam();
 
   if (currentCamMode === 'absen') {
@@ -1327,21 +1327,27 @@ function gantiFotoProfil() { document.getElementById('inputFotoProfil').click();
 async function uploadFotoProfil(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const base64 = e.target.result;
-    document.getElementById('fotoProfil').src = base64;
-    const res = await api('uploadFoto', { username: user.username, fotoBase64: base64 });
-    if (res.status === 'success') {
-      user.foto = res.urlFoto;
-      localStorage.setItem('user', JSON.stringify(user));
-      document.getElementById('avatarNav').src = res.urlFoto;
-      toast('Foto profil berhasil diupdate');
-    } else {
-      toast(res.message);
-    }
-  };
-  reader.readAsDataURL(file);
+
+  // Kompres dulu biar Vivo kuat
+  const img = await createImageBitmap(file);
+  const max = 600;
+  const scale = Math.min(1, max / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width * scale;
+  canvas.height = img.height * scale;
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  const base64 = canvas.toDataURL('image/jpeg', 0.8);
+
+  document.getElementById('fotoProfil').src = base64;
+  const res = await api('uploadFoto', { username: user.username, fotoBase64: base64 });
+  if (res.status === 'success') {
+    user.foto = res.urlFoto;
+    localStorage.setItem('user', JSON.stringify(user));
+    document.getElementById('avatarNav').src = res.urlFoto;
+    toast('Foto profil berhasil diupdate');
+  } else {
+    toast(res.message);
+  }
 }
 
 async function simpanProfil() {
