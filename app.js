@@ -16,45 +16,51 @@ let dataPatroli = [];
 let dataKejadian = [];
 let dataPembinaan = [];
 
-// === PWA INSTALL === 
+// === PWA INSTALL UNIVERSAL ===
 let deferredPrompt;
 const installPopup = document.getElementById('installPopup');
-const btnInstall = document.getElementById('btnInstall');
+const btnAndroid = document.getElementById('btnInstallAndroid');
+const btnIOS = document.getElementById('btnInstallIOS');
+const iosSteps = document.getElementById('iosSteps');
 
-const isInStandaloneMode = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  window.navigator.standalone ||
-  document.referrer.includes('android-app://');
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) &&!window.MSStream;
+const isInStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
+// ANDROID - pakai event asli
 window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('beforeinstallprompt fired'); // Buat debug
   e.preventDefault();
   deferredPrompt = e;
-  if (!isInStandaloneMode()) {
-    installPopup.classList.remove('hidden');
-    installPopup.classList.add('flex');
+  if (!isInStandalone()) {
+    installPopup.classList.remove('hidden'); installPopup.classList.add('flex');
+    btnAndroid.classList.remove('hidden');
+    document.getElementById('installTitle').textContent = 'Install Aplikasi Dulu';
   }
 });
 
-btnInstall?.addEventListener('click', async () => {
-  installPopup.classList.add('hidden');
+btnAndroid?.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
-  console.log(`User: ${outcome}`);
+  await deferredPrompt.userChoice;
   deferredPrompt = null;
+  installPopup.classList.add('hidden');
 });
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // INI YANG BENER: pake path absolut
-    navigator.serviceWorker.register('/absensi-Balaikota/sw.js')
-      .then(reg => console.log('SW registered:', reg.scope))
-      .catch(e => console.log('SW failed:', e));
-  });
+// IPHONE - paksa tampil
+if (isIOS &&!isInStandalone()) {
+  installPopup.classList.remove('hidden'); installPopup.classList.add('flex');
+  btnIOS.classList.remove('hidden');
+  document.getElementById('installTitle').textContent = 'Wajib Install di iPhone';
+  document.getElementById('installDesc').textContent = 'Safari tidak bisa absen normal kalau belum di Add to Home Screen';
 }
+btnIOS?.addEventListener('click', () => {
+  iosSteps.classList.toggle('hidden');
+  btnIOS.innerHTML = iosSteps.classList.contains('hidden')
+   ? '<i class="fa-solid fa-share-from-square mr-2"></i>Lihat Cara Install'
+    : '<i class="fa-solid fa-check mr-2"></i>Sudah Install? Buka dari Home';
+});
 
-if (isInStandaloneMode()) installPopup?.classList.add('hidden');
+// Kalau sudah install, sembunyikan
+if (isInStandalone()) installPopup?.classList.add('hidden');
 
 const app = document.getElementById('app');
 if(!app) console.error('Div #app tidak ditemukan!');
@@ -403,25 +409,37 @@ function bukaKameraKejadian() {
 
 function openCam() {
   const modal = document.getElementById('modalCam');
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
+  modal.classList.remove('hidden'); modal.classList.add('flex');
   startTimemark();
 
-  let facingMode = 'user';
-  if (currentCamMode === 'patroli' || currentCamMode === 'kejadian') {
-    facingMode = 'environment';
-  }
+  const video = document.getElementById('video');
+  const isSelfie = (currentCamMode === 'absen');
 
-  navigator.mediaDevices.getUserMedia({ 
-    video: { facingMode: facingMode }, 
-    audio: false 
-  })
-.then(s => {
+  // iPhone fix: jangan mirror global
+  video.style.transform = isSelfie? 'scaleX(-1)' : 'none';
+  document.getElementById('canvas').style.transform = isSelfie? 'scaleX(-1)' : 'none';
+
+  const constraints = {
+    audio: false,
+    video: {
+      facingMode: { ideal: isSelfie? 'user' : 'environment' },
+      width: { ideal: 1280, max: 1920 },
+      height: { ideal: 720, max: 1080 }
+    }
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints)
+   .then(s => {
       stream = s;
-      document.getElementById('video').srcObject = s;
+      video.srcObject = s;
+      video.setAttribute('playsinline', true); // WAJIB untuk iPhone
+      video.muted = true;
+      video.onloadedmetadata = () => {
+        video.play().catch(e => console.log('play error', e));
+      };
     })
-.catch(err => {
-      toast('Gagal mengakses kamera: ' + err.message);
+   .catch(err => {
+      toast('Kamera error: ' + err.message + ' - pakai Safari ya');
       closeCam();
     });
 }
