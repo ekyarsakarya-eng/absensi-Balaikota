@@ -893,7 +893,7 @@ async function loadPatroli() {
               <p class="text-xs text-red-600 dark:text-red-400 font-semibold">Petugas: ${p.nama}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400">${tgl}</p>
             </div>
-            ${p.foto? `<img src="${p.foto}" class="w-12 h-12 rounded-lg object-cover ml-2">` : ''}
+            ${p.foto? `<img src="${p.foto}" onclick="bukaZoom('${p.foto}')" class="w-12 h-12 rounded-lg object-cover ml-2 cursor-pointer">` : ''}
           </div>
           <p class="text-xs text-gray-600 dark:text-gray-300">${p.keterangan || '-'}</p>
         </div>
@@ -1001,7 +1001,7 @@ async function loadKejadian() {
               <p class="text-xs text-red-600 dark:text-red-400 font-semibold">Pelapor: ${k.nama}</p>
               <p class="text-xs text-gray-500 dark:text-gray-400">${tgl} - ${k.lokasi}</p>
             </div>
-            ${k.foto? `<img src="${k.foto}" class="w-12 h-12 rounded-lg object-cover ml-2">` : ''}
+            ${k.foto? `<img src="${k.foto}" onclick="bukaZoom('${k.foto}')" class="w-12 h-12 rounded-lg object-cover ml-2 cursor-pointer">` : ''}
           </div>
           <p class="text-xs text-gray-600 dark:text-gray-300">${k.kronologi}</p>
         </div>
