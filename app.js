@@ -1467,4 +1467,3 @@ switchPage = function(page) {
 
 console.log('Starting app...');
 render();
-render(); 
