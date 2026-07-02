@@ -743,21 +743,56 @@ async function capture() {
   canvas.height = height;
   ctx.drawImage(video, 0, 0, width, height);
 
-  const scale = width / 640;
-  ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-  ctx.fillRect(8 * scale, height - 85 * scale, 280 * scale, 75 * scale);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${11 * scale}px Arial`;
-  ctx.fillText(new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }), 18 * scale, height - 62 * scale);
-  ctx.fillStyle = "#facc15";
-  ctx.font = `bold ${13 * scale}px Arial`;
-  ctx.fillText(new Date().toLocaleTimeString('id-ID'), 18 * scale, height - 44 * scale);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `${10 * scale}px Arial`;
-  ctx.fillText(`Nama: ${user.nama}`, 18 * scale, height - 28 * scale);
-  ctx.fillStyle = "#4ade80";
-  ctx.font = `9px Courier New`;
-  ctx.fillText(`GPS: ${currentLocation.lat},${currentLocation.long}`, 18 * scale, height - 13 * scale);
+  const scale = Math.max(width / 640, 1); // Minimal scale 1 agar tidak kekecilan
+
+// === WATERMARK BOX (DIPERBESAR) ===
+const wmPadding = 14 * scale;
+const wmBoxWidth = 340 * scale;
+const wmBoxHeight = 120 * scale;
+const wmX = 12 * scale;
+const wmY = height - wmBoxHeight - 12 * scale;
+
+// Background hitam transparan
+ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
+ctx.fillRect(wmX, wmY, wmBoxWidth, wmBoxHeight);
+
+// Border merah di kiri (aksen)
+ctx.fillStyle = "#dc2626";
+ctx.fillRect(wmX, wmY, 6 * scale, wmBoxHeight);
+
+// Border atas tipis
+ctx.fillStyle = "rgba(255,255,255,0.15)";
+ctx.fillRect(wmX, wmY, wmBoxWidth, 2 * scale);
+
+// Posisi teks
+const textX = wmX + wmPadding + 6 * scale;
+let textY = wmY + 26 * scale;
+
+// Baris 1: Tanggal
+ctx.fillStyle = "#ffffff";
+ctx.font = `bold ${15 * scale}px Arial`;
+ctx.fillText(
+  new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+  textX, textY
+);
+
+// Baris 2: Jam (lebih besar & kuning)
+textY += 26 * scale;
+ctx.fillStyle = "#facc15";
+ctx.font = `bold ${22 * scale}px Arial`;
+ctx.fillText(new Date().toLocaleTimeString('id-ID'), textX, textY);
+
+// Baris 3: Nama
+textY += 24 * scale;
+ctx.fillStyle = "#ffffff";
+ctx.font = `bold ${13 * scale}px Arial`;
+ctx.fillText(`Nama: ${user.nama}`, textX, textY);
+
+// Baris 4: GPS
+textY += 20 * scale;
+ctx.fillStyle = "#4ade80";
+ctx.font = `${12 * scale}px Courier New`;
+ctx.fillText(`GPS: ${currentLocation.lat}, ${currentLocation.long}`, textX, textY);
 
   const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
   closeCam();
