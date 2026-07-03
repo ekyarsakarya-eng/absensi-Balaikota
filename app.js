@@ -2,7 +2,7 @@
 // KONFIGURASI & VARIABEL GLOBAL
 // ============================================
 const URL_GAS = 'https://script.google.com/macros/s/AKfycbySOy0DGZWfuTLBjPQlgau1VSgOlMf9fi9z_Sx1jJAQDbI_Uyu5WXDEhDHqYOVpZJSM/exec';
-console.log('App.js loaded - v2 CLEAN');
+console.log('App.js loaded - v1.0.2 CLEAN');
 
 let user = JSON.parse(localStorage.getItem('user') || 'null');
 let isDark = localStorage.getItem('dark') === 'true';
