@@ -1,4 +1,4 @@
-const CACHE_NAME = 'absensi-blkt-v7';
+const CACHE_NAME = 'absensi-blkt-v8';
 const urlsToCache = [
   '/absensi-Balaikota/',
   '/absensi-Balaikota/app.js',
@@ -18,13 +18,18 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
       keys.map(key => {
-        if (key!== CACHE_NAME) return caches.delete(key);
+        if (key !== CACHE_NAME) return caches.delete(key);
       })
     )).then(() => clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
+  // JANGAN cache atau intercept Google Apps Script calls!
+  if (event.request.url.includes('script.google.com')) {
+    return; // Biarkan langsung ke network
+  }
+  
   event.respondWith(
     caches.match(event.request).then(response => {
       return response || fetch(event.request);
