@@ -7,12 +7,12 @@
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="/absensi-Balaikota/manifest.json">
-<meta name="theme-color" content="#800000">
+  <meta name="theme-color" content="#800000">
 
   <!-- Icons -->
-<link rel="icon" type="image/png" sizes="192x192" href="/absensi-Balaikota/icon-192.png">
-<link rel="shortcut icon" href="/absensi-Balaikota/icon-192.png">
-<link rel="apple-touch-icon" href="/absensi-Balaikota/icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/absensi-Balaikota/icon-192.png">
+  <link rel="shortcut icon" href="/absensi-Balaikota/icon-192.png">
+  <link rel="apple-touch-icon" href="/absensi-Balaikota/icon-192.png">
 
   <!-- iOS PWA Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -60,23 +60,48 @@
     </div>
   </div>
 
+  <!-- Load app.js dengan cache busting -->
+  <script>
+    const APP_VERSION = '1.0.2';
+    
+    // Clear old service workers
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          registration.unregister();
+        });
+      });
+    }
+    
+    // Clear all caches
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        names.forEach(name => caches.delete(name));
+      });
+    }
+    
+    // Save version
+    localStorage.setItem('app_version', APP_VERSION);
+  </script>
+  
+  <!-- Load app.js -->
   <script src="app.js"></script>
+  
   <script>
   // Register Service Worker - Ga ngaruh ke absen
    if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/absensi-Balaikota/sw.js');
-  });
-}
-</script>
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/absensi-Balaikota/sw.js');
+    });
+  }
+  </script>
   <div id="modalZoom" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-[9999]" onclick="tutupZoom()">
-  <button class="absolute top-5 right-5 w-11 h-11 bg-white/20 rounded-full text-white text-3xl">&times;</button>
-  <img id="imgZoom" class="max-w-full max-h-[90vh] rounded-2xl" onclick="event.stopPropagation()">
-</div>
-<script>
-function bukaZoom(url){ document.getElementById('imgZoom').src=url; document.getElementById('modalZoom').classList.remove('hidden'); document.getElementById('modalZoom').classList.add('flex'); }
-function tutupZoom(){ document.getElementById('modalZoom').classList.add('hidden'); }
-</script>
- </body>
+    <button class="absolute top-5 right-5 w-11 h-11 bg-white/20 rounded-full text-white text-3xl">&times;</button>
+    <img id="imgZoom" class="max-w-full max-h-[90vh] rounded-2xl" onclick="event.stopPropagation()">
+  </div>
+  <script>
+    function bukaZoom(url){ document.getElementById('imgZoom').src=url; document.getElementById('modalZoom').classList.remove('hidden'); document.getElementById('modalZoom').classList.add('flex'); }
+    function tutupZoom(){ document.getElementById('modalZoom').classList.add('hidden'); }
+  </script>
+</body>
 </html>
-
