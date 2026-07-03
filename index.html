@@ -53,55 +53,79 @@
       </div>
       <h3 class="text-xl font-black text-gray-900 dark:text-white mb-2">Install Aplikasi Dulu</h3>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Untuk absen, aplikasi harus diinstall ke HP kamu. Biar bisa dipake offline + lebih cepat + full screen.</p>
-      <button id="btnInstall" class="w-full bg-red-800 hover:bg-red-900 active:scale-95 text-white py-4 rounded-2xl font-bold text-lg shadow-xl transition">
+      <button id="btnInstallAndroid" class="w-full bg-red-800 hover:bg-red-900 active:scale-95 text-white py-4 rounded-2xl font-bold text-lg shadow-xl transition">
         <i class="fa-solid fa-download mr-2"></i>Install Sekarang
       </button>
+      <button id="btnIOS" class="hidden w-full bg-red-800 hover:bg-red-900 active:scale-95 text-white py-4 rounded-2xl font-bold text-lg shadow-xl transition mt-2">
+        <i class="fa-solid fa-share-from-square mr-2"></i>Lihat Cara Install
+      </button>
+      <div id="iosSteps" class="hidden text-left text-sm text-gray-600 dark:text-gray-400 mt-4 space-y-2">
+        <p>1. Tap tombol Share <i class="fa-solid fa-share-from-square text-red-800"></i></p>
+        <p>2. Pilih "Add to Home Screen"</p>
+        <p>3. Buka dari Home Screen</p>
+      </div>
       <p class="text-xs text-gray-500 mt-4">Ukuran cuma 2MB • Gratis</p>
     </div>
   </div>
 
-  <!-- Load app.js dengan cache busting -->
+  <!-- FORCE CLEAR CACHE & SERVICE WORKER -->
   <script>
-    const APP_VERSION = '1.0.2';
-    
-    // Clear old service workers
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(registrations => {
-        registrations.forEach(registration => {
-          registration.unregister();
-        });
-      });
-    }
-    
-    // Clear all caches
-    if ('caches' in window) {
-      caches.keys().then(names => {
-        names.forEach(name => caches.delete(name));
-      });
-    }
-    
-    // Save version
-    localStorage.setItem('app_version', APP_VERSION);
+    (function() {
+      console.log('🧹 Force clearing cache and service workers...');
+      
+      // Unregister semua service workers
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+            console.log('✅ Service Worker unregistered:', registration.scope);
+          }
+        }).catch(err => console.error('❌ SW unregister error:', err));
+      }
+      
+      // Clear semua cache
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+            console.log('✅ Cache deleted:', name);
+          }
+        }).catch(err => console.error('❌ Cache clear error:', err));
+      }
+      
+      console.log('✅ Clear complete!');
+    })();
   </script>
-  
+
   <!-- Load app.js -->
   <script src="app.js"></script>
-  
+
+  <!-- Register Service Worker -->
   <script>
-  // Register Service Worker - Ga ngaruh ke absen
-   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/absensi-Balaikota/sw.js');
-    });
-  }
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/absensi-Balaikota/sw.js')
+          .then(reg => console.log('✅ SW registered:', reg.scope))
+          .catch(err => console.log('❌ SW registration failed:', err));
+      });
+    }
   </script>
+
+  <!-- Modal Zoom Foto -->
   <div id="modalZoom" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-[9999]" onclick="tutupZoom()">
-    <button class="absolute top-5 right-5 w-11 h-11 bg-white/20 rounded-full text-white text-3xl">&times;</button>
+    <button class="absolute top-5 right-5 w-11 h-11 bg-white/20 rounded-full text-white text-3xl hover:bg-white/30 transition">&times;</button>
     <img id="imgZoom" class="max-w-full max-h-[90vh] rounded-2xl" onclick="event.stopPropagation()">
   </div>
+  
   <script>
-    function bukaZoom(url){ document.getElementById('imgZoom').src=url; document.getElementById('modalZoom').classList.remove('hidden'); document.getElementById('modalZoom').classList.add('flex'); }
-    function tutupZoom(){ document.getElementById('modalZoom').classList.add('hidden'); }
+    function bukaZoom(url) {
+      document.getElementById('imgZoom').src = url;
+      document.getElementById('modalZoom').classList.remove('hidden');
+      document.getElementById('modalZoom').classList.add('flex');
+    }
+    function tutupZoom() {
+      document.getElementById('modalZoom').classList.add('hidden');
+    }
   </script>
 </body>
 </html>
