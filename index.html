@@ -1,81 +1,219 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Absensi Karyawan BLKT</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Absensi Karyawan BLKT</title>
 
-  <!-- PWA Manifest -->
-  <link rel="manifest" href="/absensi-Balaikota/manifest.json">
+<!-- PWA Manifest -->
+<link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#800000">
 
-  <!-- Icons -->
-<link rel="icon" type="image/png" sizes="192x192" href="/absensi-Balaikota/icon-192.png">
-<link rel="shortcut icon" href="/absensi-Balaikota/icon-192.png">
-<link rel="apple-touch-icon" href="/absensi-Balaikota/icon-192.png">
+<!-- Icons -->
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
 
-  <!-- iOS PWA Support -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Absensi">
+<!-- iOS PWA Support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Absensi">
+<meta name="mobile-web-app-capable" content="yes">
 
-  <!-- Android PWA -->
-  <meta name="mobile-web-app-capable" content="yes">
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            'maroon': '#800000',
-            'maroon-dark': '#5c0000',
-          }
-        }
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'maroon': '#800000',
+        'maroon-dark': '#5c0000',
       }
     }
-  </script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    video, #canvas { object-fit: cover; }
-    * { -webkit-tap-highlight-color: transparent; }
-  </style>
-</head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition">
-  <div id="app"></div>
-
-  <!-- POPUP MAKSA INSTALL PWA -->
-  <div id="installPopup" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden items-center justify-center p-4 z-[999]">
-    <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl">
-      <div class="w-20 h-20 bg-red-800 rounded-3xl mx-auto flex items-center justify-center mb-4 animate-bounce">
-        <i class="fa-solid fa-download text-white text-3xl"></i>
-      </div>
-      <h3 class="text-xl font-black text-gray-900 dark:text-white mb-2">Install Aplikasi Dulu</h3>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Untuk absen, aplikasi harus diinstall ke HP kamu. Biar bisa dipake offline + lebih cepat + full screen.</p>
-      <button id="btnInstall" class="w-full bg-red-800 hover:bg-red-900 active:scale-95 text-white py-4 rounded-2xl font-bold text-lg shadow-xl transition">
-        <i class="fa-solid fa-download mr-2"></i>Install Sekarang
-      </button>
-      <p class="text-xs text-gray-500 mt-4">Ukuran cuma 2MB • Gratis</p>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-  <script>
-  // Register Service Worker - Ga ngaruh ke absen
-   if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/absensi-Balaikota/sw.js');
-  });
+  }
 }
 </script>
-  <div id="modalZoom" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-[9999]" onclick="tutupZoom()">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+  video, #canvas { object-fit: cover; }
+  * { -webkit-tap-highlight-color: transparent; }
+  
+  /* ==================== REKAP ABSENSI STYLES ==================== */
+
+/* Table Container */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.dark .table-responsive::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #dc2626;
+  border-radius: 3px;
+}
+
+/* Table Header Animation */
+.attendance-table thead th {
+  position: relative;
+  overflow: hidden;
+}
+
+.attendance-table thead th::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Status Badge Hover */
+.status-badge {
+  transition: transform 0.2s ease;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Summary Cards Animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#totalHadir, #totalIzin, #totalAlpha {
+  animation: countUp 0.5s ease-out;
+}
+
+/* Table Row Entrance Animation */
+.attendance-table tbody tr {
+  animation: fadeInRow 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes fadeInRow {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Stagger animation for rows */
+.attendance-table tbody tr:nth-child(1) { animation-delay: 0.02s; }
+.attendance-table tbody tr:nth-child(2) { animation-delay: 0.04s; }
+.attendance-table tbody tr:nth-child(3) { animation-delay: 0.06s; }
+.attendance-table tbody tr:nth-child(4) { animation-delay: 0.08s; }
+.attendance-table tbody tr:nth-child(5) { animation-delay: 0.10s; }
+
+/* Month Selector Focus */
+.month-selector select {
+  transition: all 0.2s ease;
+}
+
+.month-selector select:focus {
+  box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+  .attendance-table th,
+  .attendance-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  .status-badge {
+    padding: 4px 8px;
+    font-size: 10px;
+    min-width: 70px;
+  }
+  
+  #totalHadir, #totalIzin, #totalAlpha {
+    font-size: 1.5rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .attendance-table {
+    box-shadow: none !important;
+    border: 1px solid #000;
+  }
+  
+  .attendance-table thead {
+    background: #800000 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  nav, button, .month-selector {
+    display: none !important;
+  }
+}
+</style>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition">
+
+<div id="app"></div>
+
+<!-- POPUP INSTALL PWA -->
+<div id="installPopup" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden items-center justify-center p-4 z-[999]">
+  <div class="bg-white dark:bg-gray-800 rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl">
+    <div class="w-20 h-20 bg-red-800 rounded-3xl mx-auto flex items-center justify-center mb-4 animate-bounce">
+      <i class="fa-solid fa-download text-white text-3xl"></i>
+    </div>
+    <h3 class="text-xl font-black text-gray-900 dark:text-white mb-2">Install Aplikasi</h3>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Install aplikasi untuk pengalaman yang lebih baik</p>
+    <button id="btnInstallAndroid" class="w-full bg-red-800 hover:bg-red-900 text-white py-4 rounded-2xl font-bold text-lg shadow-xl transition">
+      <i class="fa-solid fa-download mr-2"></i>Install Sekarang
+    </button>
+    <p class="text-xs text-gray-500 mt-4">Gratis • 2MB</p>
+  </div>
+</div>
+
+<!-- Load app.js -->
+<script src="./app.js"></script>
+
+<!-- Modal Zoom -->
+<div id="modalZoom" class="fixed inset-0 bg-black/90 hidden items-center justify-center p-4 z-[9999]" onclick="tutupZoom()">
   <button class="absolute top-5 right-5 w-11 h-11 bg-white/20 rounded-full text-white text-3xl">&times;</button>
   <img id="imgZoom" class="max-w-full max-h-[90vh] rounded-2xl" onclick="event.stopPropagation()">
 </div>
+
 <script>
-function bukaZoom(url){ document.getElementById('imgZoom').src=url; document.getElementById('modalZoom').classList.remove('hidden'); document.getElementById('modalZoom').classList.add('flex'); }
-function tutupZoom(){ document.getElementById('modalZoom').classList.add('hidden'); }
+function bukaZoom(url) {
+  document.getElementById('imgZoom').src = url;
+  document.getElementById('modalZoom').classList.remove('hidden');
+  document.getElementById('modalZoom').classList.add('flex');
+}
+
+function tutupZoom() {
+  document.getElementById('modalZoom').classList.add('hidden');
+}
 </script>
- </body>
+
+</body>
 </html>
