@@ -4,6 +4,24 @@
 const URL_GAS = 'https://script.google.com/macros/s/AKfycbySOy0DGZWfuTLBjPQlgau1VSgOlMf9fi9z_Sx1jJAQDbI_Uyu5WXDEhDHqYOVpZJSM/exec';
 console.log('App.js loaded - v2 CLEAN');
 
+// Debug connection
+async function testConnection() {
+  try {
+    console.log('🔍 Testing connection to GAS...');
+    const response = await fetch(URL_GAS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'test' })
+    });
+    const data = await response.json();
+    console.log('✅ Connection OK:', data);
+  } catch (err) {
+    console.error('❌ Connection FAILED:', err);
+    console.error('❌ Error details:', err.message);
+  }
+}
+testConnection();
+
 let user = JSON.parse(localStorage.getItem('user') || 'null');
 let isDark = localStorage.getItem('dark') === 'true';
 let currentType = '';
@@ -18,6 +36,7 @@ let dataRekap = [];
 let dataPatroli = [];
 let dataKejadian = [];
 let dataPembinaan = [];
+let selectedMonth = '';
 
 // ============================================
 // PWA INSTALL UNIVERSAL
@@ -25,7 +44,7 @@ let dataPembinaan = [];
 let deferredPrompt;
 const installPopup = document.getElementById('installPopup');
 const btnAndroid = document.getElementById('btnInstallAndroid');
-const btnIOS = document.getElementById('btnInstallIOS');
+const btnIOS = document.getElementById('btnIOS');
 const iosSteps = document.getElementById('iosSteps');
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
@@ -38,7 +57,6 @@ window.addEventListener('beforeinstallprompt', (e) => {
     installPopup.classList.remove('hidden');
     installPopup.classList.add('flex');
     btnAndroid.classList.remove('hidden');
-    document.getElementById('installTitle').textContent = 'Install Aplikasi Dulu';
   }
 });
 
@@ -53,25 +71,29 @@ btnAndroid?.addEventListener('click', async () => {
 if (isIOS && !isInStandalone()) {
   installPopup.classList.remove('hidden');
   installPopup.classList.add('flex');
-  btnIOS.classList.remove('hidden');
-  document.getElementById('installTitle').textContent = 'Wajib Install di iPhone';
-  document.getElementById('installDesc').textContent = 'Safari tidak bisa absen normal kalau belum di Add to Home Screen';
+  if (btnIOS) {
+    btnIOS.classList.remove('hidden');
+  }
 }
 
 btnIOS?.addEventListener('click', () => {
-  iosSteps.classList.toggle('hidden');
-  btnIOS.innerHTML = iosSteps.classList.contains('hidden')
-    ? '<i class="fa-solid fa-share-from-square mr-2"></i>Lihat Cara Install'
-    : '<i class="fa-solid fa-check mr-2"></i>Sudah Install? Buka dari Home';
+  if (iosSteps) {
+    iosSteps.classList.toggle('hidden');
+  }
+  if (btnIOS) {
+    btnIOS.innerHTML = iosSteps.classList.contains('hidden')
+      ? '<i class="fa-solid fa-share-from-square mr-2"></i>Lihat Cara Install'
+      : '<i class="fa-solid fa-check mr-2"></i>Sudah Install? Buka dari Home';
+  }
 });
 
-if (isInStandalone()) installPopup?.classList.add('hidden');
+if (isInStandalone() && installPopup) installPopup.classList.add('hidden');
 
 // ============================================
 // INIT APP
 // ============================================
 const app = document.getElementById('app');
-if (!app) console.error('Div #app tidak ditemukan!');
+if (!app) console.error('❌ Div #app tidak ditemukan!');
 if (isDark) document.documentElement.classList.add('dark');
 
 function render() {
@@ -122,13 +144,19 @@ async function login() {
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Memproses...';
   
-  const res = await api('login', { username, password });
-  if (res.status === 'success') {
-    user = res;
-    localStorage.setItem('user', JSON.stringify(user));
-    render();
-  } else {
-    toast(res.message);
+  try {
+    const res = await api('login', { username, password });
+    if (res.status === 'success') {
+      user = res;
+      localStorage.setItem('user', JSON.stringify(user));
+      render();
+    } else {
+      toast(res.message);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i>Masuk';
+    }
+  } catch (err) {
+    toast('Koneksi gagal: ' + err.message);
     btn.disabled = false;
     btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-2"></i>Masuk';
   }
@@ -199,30 +227,33 @@ function renderDashboard() {
   </div>
 
   <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 dark:bg-gray-800 dark:border-gray-700 shadow-lg z-20">
-    <div class="grid grid-cols-5 gap-1 max-w-2xl mx-auto">
-      <button onclick="switchPage('home')" class="flex flex-col items-center py-2 ${currentPage === 'home' ? 'text-red-800' : 'text-gray-500'}">
-        <i class="fa-solid fa-house text-xl mb-1"></i>
-        <span class="text-xs font-semibold">Home</span>
-      </button>
-      <button onclick="switchPage('rekap')" class="flex flex-col items-center py-2 ${currentPage === 'rekap' ? 'text-red-800' : 'text-gray-500'}">
-        <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-rekap.png" class="w-6 h-6 mb-1 ${currentPage === 'rekap' ? '' : 'opacity-50'}">
-        <span class="text-xs font-semibold">Rekap</span>
-      </button>
-      <button onclick="switchPage('patroli')" class="flex flex-col items-center py-2 ${currentPage === 'patroli' ? 'text-red-800' : 'text-gray-500'}">
-        <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-patroli.png" class="w-6 h-6 mb-1 ${currentPage === 'patroli' ? '' : 'opacity-50'}">
-        <span class="text-xs font-semibold">Patroli</span>
-      </button>
-      <button onclick="switchPage('kejadian')" class="flex flex-col items-center py-2 ${currentPage === 'kejadian' ? 'text-red-800' : 'text-gray-500'}">
-        <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-kejadian.png" class="w-6 h-6 mb-1 ${currentPage === 'kejadian' ? '' : 'opacity-50'}">
-        <span class="text-xs font-semibold">Kejadian</span>
-      </button>
-      <button onclick="switchPage('pembinaan')" class="flex flex-col items-center py-2 ${currentPage === 'pembinaan' ? 'text-red-800' : 'text-gray-500'}">
-        <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-pembinaan.png" class="w-6 h-6 mb-1 ${currentPage === 'pembinaan' ? '' : 'opacity-50'}">
-        <span class="text-xs font-semibold">Pembinaan</span>
-      </button>
-    </div>
+  <div class="grid grid-cols-5 gap-1 max-w-2xl mx-auto">
+    <button onclick="switchPage('home')" class="flex flex-col items-center py-2 ${currentPage === 'home' ? 'text-red-800' : 'text-gray-500'}">
+      <i class="fa-solid fa-house text-xl mb-1"></i>
+      <span class="text-xs font-semibold">Home</span>
+    </button>
+    <button onclick="switchPage('rekap')" class="flex flex-col items-center py-2 ${currentPage === 'rekap' ? 'text-red-800' : 'text-gray-500'}">
+      <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-rekap.png" class="w-6 h-6 mb-1 ${currentPage === 'rekap' ? '' : 'opacity-50'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <i class="fa-solid fa-table text-xl mb-1 hidden"></i>
+      <span class="text-xs font-semibold">Rekap</span>
+    </button>
+    <button onclick="switchPage('patroli')" class="flex flex-col items-center py-2 ${currentPage === 'patroli' ? 'text-red-800' : 'text-gray-500'}">
+      <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-patroli.png" class="w-6 h-6 mb-1 ${currentPage === 'patroli' ? '' : 'opacity-50'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <i class="fa-solid fa-route text-xl mb-1 hidden"></i>
+      <span class="text-xs font-semibold">Patroli</span>
+    </button>
+    <button onclick="switchPage('kejadian')" class="flex flex-col items-center py-2 ${currentPage === 'kejadian' ? 'text-red-800' : 'text-gray-500'}">
+      <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-kejadian.png" class="w-6 h-6 mb-1 ${currentPage === 'kejadian' ? '' : 'opacity-50'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <i class="fa-solid fa-triangle-exclamation text-xl mb-1 hidden"></i>
+      <span class="text-xs font-semibold">Kejadian</span>
+    </button>
+    <button onclick="switchPage('pembinaan')" class="flex flex-col items-center py-2 ${currentPage === 'pembinaan' ? 'text-red-800' : 'text-gray-500'}">
+      <img src="https://raw.githubusercontent.com/ekyarsakarya-eng/absensi-Balaikota/main/icon-pembinaan.png" class="w-6 h-6 mb-1 ${currentPage === 'pembinaan' ? '' : 'opacity-50'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <i class="fa-solid fa-user-graduate text-xl mb-1 hidden"></i>
+      <span class="text-xs font-semibold">Pembinaan</span>
+    </button>
   </div>
-
+</div>
   ${renderModals()}
   `;
 
@@ -437,6 +468,7 @@ function renderPage() {
 
 function switchPage(page) {
   currentPage = page;
+  // Jangan simpan selectedMonth - biarkan reset ke bulan berjalan
   renderDashboard();
   history.pushState({ page: page }, '', '');
 }
@@ -573,23 +605,64 @@ setInterval(updateJamRealtime, 1000);
 
 async function loadHomeStats() {
   try {
+    // Gunakan getRekapFromSheetBulanan untuk bulan saat ini
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const bulanParam = `${month}/${year}`;
+    
+    console.log('📊 Loading home stats untuk bulan:', bulanParam);
+    
     const [rekap, patroli] = await Promise.all([
-      api('getRekap', { username: user.username }),
+      api('getRekapFromSheetBulanan', { 
+        username: user.username,
+        nama: user.nama,
+        bulan: bulanParam 
+      }),
       api('getPatroli', { username: user.username })
     ]);
+
+    console.log(' Rekap response:', rekap);
+    console.log('📥 Patroli response:', patroli);
 
     const statHadir = document.getElementById('statHadir');
     const statTelat = document.getElementById('statTelat');
     const statPatroli = document.getElementById('statPatroli');
 
-    if (rekap.status === 'success' && statHadir) {
-      const hadir = rekap.data.filter(r => r.keterangan === 'IN' && r.jam && r.jam !== '--:--').length;
+    if (rekap.status === 'success' && rekap.data && statHadir) {
+      // Group data per tanggal untuk hitung hadir
+      const grouped = {};
+      rekap.data.forEach(item => {
+        if (!grouped[item.tanggal]) {
+          grouped[item.tanggal] = { in: null, out: null };
+        }
+        const ket = String(item.keterangan || '').toUpperCase();
+        if (ket === 'IN' || ket === 'MASUK') {
+          grouped[item.tanggal].in = item.jam;
+        }
+        if (ket === 'OUT' || ket === 'PULANG') {
+          grouped[item.tanggal].out = item.jam;
+        }
+      });
+      
+      // Hitung hadir = yang ada jam masuk
+      const hadir = Object.keys(grouped).filter(tgl => grouped[tgl].in).length;
       statHadir.textContent = hadir;
-      if (statTelat) statTelat.textContent = 0;
+      
+      console.log('✅ Hadir bulan ini:', hadir);
+      
+      // Hitung telat (opsional - bisa disesuaikan dengan jam masuk standar)
+      // Untuk sekarang tampilkan 0 atau hitung berdasarkan jam masuk > 08:00
+      if (statTelat) statTelat.textContent = '0';
+    } else {
+      console.warn('⚠️ Rekap error atau kosong:', rekap);
+      if (statHadir) statHadir.textContent = '0';
+      if (statTelat) statTelat.textContent = '0';
     }
 
     if (patroli.status === 'success' && statPatroli) {
       statPatroli.textContent = patroli.data.length;
+      console.log('✅ Patroli bulan ini:', patroli.data.length);
 
       const aktivitasEl = document.getElementById('aktivitasTerakhir');
       if (aktivitasEl && patroli.data.length > 0) {
@@ -743,56 +816,47 @@ async function capture() {
   canvas.height = height;
   ctx.drawImage(video, 0, 0, width, height);
 
-  const scale = Math.max(width / 640, 1); // Minimal scale 1 agar tidak kekecilan
+  const scale = Math.max(width / 640, 1);
 
-// === WATERMARK BOX (DIPERBESAR) ===
-const wmPadding = 14 * scale;
-const wmBoxWidth = 340 * scale;
-const wmBoxHeight = 120 * scale;
-const wmX = 12 * scale;
-const wmY = height - wmBoxHeight - 12 * scale;
+  const wmPadding = 14 * scale;
+  const wmBoxWidth = 340 * scale;
+  const wmBoxHeight = 120 * scale;
+  const wmX = 12 * scale;
+  const wmY = height - wmBoxHeight - 12 * scale;
 
-// Background hitam transparan
-ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
-ctx.fillRect(wmX, wmY, wmBoxWidth, wmBoxHeight);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.78)";
+  ctx.fillRect(wmX, wmY, wmBoxWidth, wmBoxHeight);
 
-// Border merah di kiri (aksen)
-ctx.fillStyle = "#dc2626";
-ctx.fillRect(wmX, wmY, 6 * scale, wmBoxHeight);
+  ctx.fillStyle = "#dc2626";
+  ctx.fillRect(wmX, wmY, 6 * scale, wmBoxHeight);
 
-// Border atas tipis
-ctx.fillStyle = "rgba(255,255,255,0.15)";
-ctx.fillRect(wmX, wmY, wmBoxWidth, 2 * scale);
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.fillRect(wmX, wmY, wmBoxWidth, 2 * scale);
 
-// Posisi teks
-const textX = wmX + wmPadding + 6 * scale;
-let textY = wmY + 26 * scale;
+  const textX = wmX + wmPadding + 6 * scale;
+  let textY = wmY + 26 * scale;
 
-// Baris 1: Tanggal
-ctx.fillStyle = "#ffffff";
-ctx.font = `bold ${15 * scale}px Arial`;
-ctx.fillText(
-  new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
-  textX, textY
-);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${15 * scale}px Arial`;
+  ctx.fillText(
+    new Date().toLocaleDateString('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+    textX, textY
+  );
 
-// Baris 2: Jam (lebih besar & kuning)
-textY += 26 * scale;
-ctx.fillStyle = "#facc15";
-ctx.font = `bold ${22 * scale}px Arial`;
-ctx.fillText(new Date().toLocaleTimeString('id-ID'), textX, textY);
+  textY += 26 * scale;
+  ctx.fillStyle = "#facc15";
+  ctx.font = `bold ${22 * scale}px Arial`;
+  ctx.fillText(new Date().toLocaleTimeString('id-ID'), textX, textY);
 
-// Baris 3: Nama
-textY += 24 * scale;
-ctx.fillStyle = "#ffffff";
-ctx.font = `bold ${13 * scale}px Arial`;
-ctx.fillText(`Nama: ${user.nama}`, textX, textY);
+  textY += 24 * scale;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${13 * scale}px Arial`;
+  ctx.fillText(`Nama: ${user.nama}`, textX, textY);
 
-// Baris 4: GPS
-textY += 20 * scale;
-ctx.fillStyle = "#4ade80";
-ctx.font = `${12 * scale}px Courier New`;
-ctx.fillText(`GPS: ${currentLocation.lat}, ${currentLocation.long}`, textX, textY);
+  textY += 20 * scale;
+  ctx.fillStyle = "#4ade80";
+  ctx.font = `${12 * scale}px Courier New`;
+  ctx.fillText(`GPS: ${currentLocation.lat}, ${currentLocation.long}`, textX, textY);
 
   const fotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
   closeCam();
@@ -847,133 +911,426 @@ function startTimemark() {
 }
 
 // ============================================
-// REKAP PAGE
+// REKAP PAGE - DENGAN FITUR PILIH BULAN
 // ============================================
 function renderRekap() {
+  const monthOptions = generateMonthOptions();
+  
+  // SELALU set ke bulan berjalan saat masuk halaman Rekap
+  selectedMonth = getCurrentMonthKey();
+  
   return `
   <div class="space-y-4">
+    <!-- Header -->
     <div class="flex justify-between items-center">
-      <h2 class="text-xl font-bold text-gray-800 dark:text-white">Rekap Absensi</h2>
-      <button onclick="loadRekap()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition">
-        <i class="fa-solid fa-refresh mr-1"></i>Refresh
+      <h2 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+        <i class="fa-solid fa-calendar-days text-red-800"></i>
+        Rekap Absensi
+      </h2>
+      <button onclick="loadRekap()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition shadow-sm">
+        <i class="fa-solid fa-rotate-right mr-1"></i>Refresh
       </button>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
-      <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Bulan: ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
-      <div class="grid grid-cols-3 gap-3 text-center">
-        <div class="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
-          <p class="text-2xl font-bold text-green-600" id="totalHadir">-</p>
-          <p class="text-xs text-gray-600 dark:text-gray-400">Hadir</p>
-        </div>
-        <div class="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-          <p class="text-2xl font-bold text-yellow-600" id="totalIzin">-</p>
-          <p class="text-xs text-gray-600 dark:text-gray-400">Izin</p>
-        </div>
-        <div class="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">
-          <p class="text-2xl font-bold text-red-600" id="totalAlpha">-</p>
-          <p class="text-xs text-gray-600 dark:text-gray-400">Alpha</p>
-        </div>
+    <!-- Month Selector -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+      <label class="text-xs font-bold text-red-800 dark:text-red-400 uppercase tracking-wide block mb-2">
+        <i class="fa-regular fa-calendar mr-1"></i> Pilih Bulan
+      </label>
+      <select id="monthSelector" onchange="changeMonth(this.value)" 
+        class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl text-sm focus:border-red-800 outline-none dark:text-white font-semibold cursor-pointer">
+        ${monthOptions}
+      </select>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 p-4 rounded-2xl border border-green-200 dark:border-green-800 text-center shadow-sm">
+        <i class="fa-solid fa-circle-check text-green-600 dark:text-green-400 text-xl mb-1"></i>
+        <p class="text-2xl font-black text-green-700 dark:text-green-300" id="totalHadir">-</p>
+        <p class="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-wider">Hadir</p>
+      </div>
+      <div class="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/20 p-4 rounded-2xl border border-amber-200 dark:border-amber-800 text-center shadow-sm">
+        <i class="fa-solid fa-file-signature text-amber-600 dark:text-amber-400 text-xl mb-1"></i>
+        <p class="text-2xl font-black text-amber-700 dark:text-amber-300" id="totalIzin">-</p>
+        <p class="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Izin</p>
+      </div>
+      <div class="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/30 dark:to-rose-900/20 p-4 rounded-2xl border border-red-200 dark:border-red-800 text-center shadow-sm">
+        <i class="fa-solid fa-circle-xmark text-red-600 dark:text-red-400 text-xl mb-1"></i>
+        <p class="text-2xl font-black text-red-700 dark:text-red-300" id="totalAlpha">-</p>
+        <p class="text-[10px] text-red-600 dark:text-red-400 font-bold uppercase tracking-wider">Alpha</p>
       </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow">
-      <p class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">Riwayat Absensi Anda</p>
-      <div class="space-y-2" id="listRekap">
+    <!-- Tabel Rekap -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <p class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2" id="rekapHeaderLabel">
+          <i class="fa-solid fa-table-list text-red-800"></i>
+          Riwayat Bulan ${getMonthName(selectedMonth)}
+        </p>
+        <span id="rekapCount" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full"></span>
+      </div>
+      <div id="listRekap" class="p-4">
         <div class="text-center text-gray-400 py-8">
           <i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i>
-          <p class="text-sm">Loading data...</p>
+          <p class="text-sm">Memuat data...</p>
         </div>
       </div>
     </div>
   </div>`;
 }
 
-async function loadRekap() {
+function generateMonthOptions() {
+  const months = [];
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  
+  const startDate = new Date(2026, 5, 1); // Mulai dari Juni 2026
+  const currentDate = new Date();
+  const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 1);
+  
+  let current = new Date(startDate);
+  
+  while (current <= endDate) {
+    const month = String(current.getMonth() + 1).padStart(2, '0');
+    const year = current.getFullYear();
+    const key = `${month}_${year}`;
+    const label = `${monthNames[current.getMonth()]} ${year}`;
+    
+    // selectedMonth sudah di-set ke getCurrentMonthKey() di renderRekap
+    months.push(`<option value="${key}" ${selectedMonth === key ? 'selected' : ''}>${label}</option>`);
+    current.setMonth(current.getMonth() + 1);
+  }
+  
+  return months.join('');
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${month}_${year}`;
+}
+
+function getMonthName(monthKey) {
+  const [month, year] = monthKey.split('_');
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  return `${monthNames[parseInt(month) - 1]} ${year}`;
+}
+
+function changeMonth(monthKey) {
+  selectedMonth = monthKey;
+  
+  const labelEl = document.getElementById('rekapHeaderLabel');
+  if (labelEl) {
+    labelEl.innerHTML = `<i class="fa-solid fa-table-list text-red-800"></i> Riwayat Bulan ${getMonthName(monthKey)}`;
+  }
+  
+  const selectEl = document.getElementById('monthSelector');
+  if (selectEl) selectEl.value = monthKey;
+  
+  loadRekap(monthKey);
+}
+
+async function loadRekap(bulanKey = null) {
   const listEl = document.getElementById('listRekap');
-  if (listEl) listEl.innerHTML = '<div class="text-center text-gray-400 py-8"><i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i><p class="text-sm">Loading...</p></div>';
+  const countEl = document.getElementById('rekapCount');
+  
+  // Pastikan user login
+  if (!user) {
+    console.error('❌ User tidak login');
+    listEl.innerHTML = `
+      <div class="text-center py-8">
+        <i class="fa-solid fa-circle-exclamation text-5xl text-red-500 mb-3"></i>
+        <h3 class="font-bold text-gray-800 dark:text-white mb-1">Session Expired</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Silakan login ulang</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const bulan = bulanKey || document.getElementById('monthSelector')?.value || getCurrentMonthKey();
+  const [month, year] = bulan.split('_');
+  const bulanParam = `${month}/${year}`;
+  
+  console.log('🔍 Loading rekap:');
+  console.log('   Bulan:', bulanParam);
+  console.log('   Username:', user.username);
+  console.log('   Nama:', user.nama);
+
+  listEl.innerHTML = `
+    <div class="text-center py-8">
+      <div class="inline-block w-10 h-10 border-4 border-red-200 border-t-red-800 rounded-full animate-spin mb-3"></div>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Memuat data absensi ${getMonthName(bulan)}...</p>
+    </div>
+  `;
+  if (countEl) countEl.textContent = '';
 
   try {
-    const res = await api('getRekap', { username: user.username });
+    // Kirim username DAN nama ke backend
+    const res = await api('getRekapFromSheetBulanan', {
+      username: user.username,
+      nama: user.nama,
+      bulan: bulanParam
+    });
 
-    if (res.status === 'success') {
-      dataRekap = res.data || [];
+    console.log('📥 Response:', res);
 
-      let hadir = 0;
-      dataRekap.forEach(r => {
-        if (r.keterangan === 'IN' && r.jam && r.jam !== '--:--') hadir++;
-      });
+    if (res.status === 'error') {
+      console.error('❌ Error:', res.message);
+      listEl.innerHTML = `
+        <div class="text-center py-8">
+          <i class="fa-solid fa-triangle-exclamation text-5xl text-amber-500 mb-3"></i>
+          <h3 class="font-bold text-gray-800 dark:text-white mb-1">Error</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">${res.message}</p>
+          <button onclick="loadRekap('${bulan}')" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm">
+            <i class="fa-solid fa-rotate-right mr-2"></i>Coba Lagi
+          </button>
+        </div>
+      `;
+      document.getElementById('totalHadir').textContent = '0';
+      document.getElementById('totalIzin').textContent = '0';
+      document.getElementById('totalAlpha').textContent = '0';
+      return;
+    }
 
-      document.getElementById('totalHadir').textContent = hadir;
-      document.getElementById('totalIzin').textContent = 0;
-      document.getElementById('totalAlpha').textContent = 0;
+    if (!res.data || res.data.length === 0) {
+      console.log('⚠️ Tidak ada data');
+      listEl.innerHTML = `
+        <div class="text-center py-8">
+          <i class="fa-regular fa-calendar-xmark text-6xl text-gray-300 dark:text-gray-600 mb-3"></i>
+          <h3 class="font-bold text-gray-700 dark:text-gray-300 mb-1">Belum Ada Data</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada riwayat absensi untuk bulan ${getMonthName(bulan)}</p>
+          <p class="text-xs text-gray-400 mt-2">Nama: ${user.nama} | Username: ${user.username}</p>
+        </div>
+      `;
+      document.getElementById('totalHadir').textContent = '0';
+      document.getElementById('totalIzin').textContent = '0';
+      document.getElementById('totalAlpha').textContent = '0';
+      if (countEl) countEl.textContent = '0 hari';
+      return;
+    }
 
-      if (dataRekap.length > 0) {
-        const grouped = {};
-        dataRekap.forEach(r => {
-          const d = new Date(r.tanggal + 'T00:00:00');
-          const tglKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-          if (!grouped[tglKey]) grouped[tglKey] = [];
-          grouped[tglKey].push(r);
-        });
+    console.log('✅ Data ditemukan:', res.data.length, 'records');
+    
+    // Group data per tanggal
+    const grouped = {};
+    let totalHadir = 0;
+    let totalIzin = 0;
+    let totalAlpha = 0;
 
-        const last7Keys = Object.keys(grouped).sort().slice(-7).reverse();
+    res.data.forEach(item => {
+      const tgl = item.tanggal;
+      if (!tgl) return;
+      
+      if (!grouped[tgl]) {
+        grouped[tgl] = { in: null, out: null, status: 'Alpha' };
+      }
+      
+      const ket = String(item.keterangan || '').toUpperCase();
+      const jam = item.jam ? String(item.jam).substring(0, 5) : null;
+      
+      if (ket === 'IN' || ket === 'MASUK') {
+        grouped[tgl].in = jam;
+        if (grouped[tgl].status === 'Alpha') grouped[tgl].status = 'Hadir';
+      } else if (ket === 'OUT' || ket === 'PULANG') {
+        grouped[tgl].out = jam;
+      } else if (ket === 'IZIN') {
+        grouped[tgl].status = 'Izin';
+        if (jam) grouped[tgl].in = jam;
+      } else if (ket === 'ALPHA') {
+        grouped[tgl].status = 'Alpha';
+      }
+    });
 
-        listEl.innerHTML = last7Keys.map(key => {
-          const records = grouped[key];
-          const masuk = records.find(r => r.keterangan === 'IN');
-          const pulang = records.find(r => r.keterangan === 'OUT');
+    Object.keys(grouped).forEach(tgl => {
+      const d = grouped[tgl];
+      if (d.status === 'Hadir') totalHadir++;
+      else if (d.status === 'Izin') totalIzin++;
+      else if (d.status === 'Alpha') totalAlpha++;
+    });
 
-          const tglObj = new Date(records[0].tanggal + 'T00:00:00');
-          const tglFormat = tglObj.toLocaleDateString('id-ID', {
-            weekday: 'short', day: '2-digit', month: 'short'
-          });
+    animateValue('totalHadir', 0, totalHadir, 500);
+    animateValue('totalIzin', 0, totalIzin, 500);
+    animateValue('totalAlpha', 0, totalAlpha, 500);
 
-          return `
-            <div class="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <p class="text-xs font-bold text-gray-600 dark:text-gray-400 mb-2">${tglFormat}</p>
-              <div class="flex justify-between items-center mb-1">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center">
-                    <i class="fa-solid fa-sign-in-alt text-xs"></i>
-                  </div>
-                  <span class="text-sm text-gray-700 dark:text-gray-300">Masuk</span>
-                </div>
-                <p class="text-sm font-bold text-gray-800 dark:text-white">${masuk?.jam || '--:--'}</p>
+    if (countEl) countEl.textContent = `${Object.keys(grouped).length} hari`;
+
+    const sortedDates = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+
+    let html = `
+      <div class="overflow-x-auto -mx-4 px-4">
+        <table class="w-full text-sm min-w-[500px]">
+          <thead>
+            <tr class="bg-gradient-to-r from-red-800 to-red-900 text-white">
+              <th class="px-3 py-3 text-left font-semibold text-xs uppercase tracking-wider rounded-l-lg">
+                <i class="fa-regular fa-calendar mr-1"></i>Tanggal
+              </th>
+              <th class="px-3 py-3 text-center font-semibold text-xs uppercase tracking-wider">
+                <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i>Jam Masuk
+              </th>
+              <th class="px-3 py-3 text-center font-semibold text-xs uppercase tracking-wider">
+                <i class="fa-solid fa-arrow-right-from-bracket mr-1"></i>Jam Pulang
+              </th>
+              <th class="px-3 py-3 text-center font-semibold text-xs uppercase tracking-wider rounded-r-lg">
+                <i class="fa-solid fa-circle-info mr-1"></i>Status
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+    `;
+
+    sortedDates.forEach((tgl, idx) => {
+      const d = grouped[tgl];
+      
+      let tglFmt = tgl;
+      let dayName = '';
+      try {
+        const [y, m, dd] = tgl.split('-').map(Number);
+        const dateObj = new Date(y, m - 1, dd);
+        tglFmt = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'short' });
+      } catch (e) {
+        tglFmt = tgl;
+      }
+
+      let statusBadge = '';
+      let rowBg = '';
+      
+      if (d.status === 'Hadir') {
+        if (d.in && !d.out) {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+            <i class="fa-solid fa-clock text-[8px]"></i> Belum Pulang
+          </span>`;
+          rowBg = 'bg-blue-50/40 dark:bg-blue-900/10';
+        } else {
+          statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+            <i class="fa-solid fa-check text-[8px]"></i> Hadir
+          </span>`;
+          rowBg = idx % 2 === 0 ? '' : 'bg-gray-50/50 dark:bg-gray-700/20';
+        }
+      } else if (d.status === 'Izin') {
+        statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          <i class="fa-solid fa-file text-[8px]"></i> Izin
+        </span>`;
+        rowBg = 'bg-amber-50/40 dark:bg-amber-900/10';
+      } else if (d.status === 'Alpha') {
+        statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+          <i class="fa-solid fa-xmark text-[8px]"></i> Alpha
+        </span>`;
+        rowBg = 'bg-red-50/40 dark:bg-red-900/10';
+      } else {
+        statusBadge = `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">${d.status}</span>`;
+      }
+
+      const jamMasukHtml = d.in 
+        ? `<span class="inline-flex items-center gap-1 px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md font-bold text-xs border border-green-200 dark:border-green-800">
+            <i class="fa-solid fa-right-to-bracket text-[10px]"></i>${d.in}
+          </span>`
+        : '<span class="text-gray-300 dark:text-gray-600 text-xs">—</span>';
+
+      const jamPulangHtml = d.out 
+        ? `<span class="inline-flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-md font-bold text-xs border border-red-200 dark:border-red-800">
+            <i class="fa-solid fa-right-from-bracket text-[10px]"></i>${d.out}
+          </span>`
+        : '<span class="text-gray-300 dark:text-gray-600 text-xs">—</span>';
+
+      html += `
+        <tr class="${rowBg} hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
+          <td class="px-3 py-3">
+            <div class="flex items-center gap-2">
+              <div class="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 flex flex-col items-center justify-center flex-shrink-0">
+                <span class="text-[8px] font-bold uppercase leading-none">${dayName}</span>
+                <span class="text-sm font-black leading-none mt-0.5">${tglFmt.split(' ')[0]}</span>
               </div>
-              <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
-                    <i class="fa-solid fa-sign-out-alt text-xs"></i>
-                  </div>
-                  <span class="text-sm text-gray-700 dark:text-gray-300">Pulang</span>
-                </div>
-                <p class="text-sm font-bold text-gray-800 dark:text-white">${pulang?.jam || '--:--'}</p>
+              <div class="leading-tight">
+                <p class="font-bold text-gray-800 dark:text-white text-xs">${tglFmt}</p>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400">${dayName}</p>
               </div>
             </div>
-          `;
-        }).join('');
-      } else {
-        listEl.innerHTML = `
-          <div class="text-center text-gray-400 py-8">
-            <i class="fa-solid fa-calendar-xmark text-3xl mb-2"></i>
-            <p class="text-sm">Belum ada data absensi</p>
+          </td>
+          <td class="px-3 py-3 text-center">${jamMasukHtml}</td>
+          <td class="px-3 py-3 text-center">${jamPulangHtml}</td>
+          <td class="px-3 py-3 text-center">${statusBadge}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-gray-500 dark:text-gray-400">
+            <i class="fa-solid fa-info-circle mr-1"></i>
+            Total ${Object.keys(grouped).length} hari tercatat
+          </span>
+          <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1 text-green-600 dark:text-green-400 font-bold">
+              <span class="w-2 h-2 bg-green-500 rounded-full"></span>${totalHadir}
+            </span>
+            <span class="flex items-center gap-1 text-amber-600 dark:text-amber-400 font-bold">
+              <span class="w-2 h-2 bg-amber-500 rounded-full"></span>${totalIzin}
+            </span>
+            <span class="flex items-center gap-1 text-red-600 dark:text-red-400 font-bold">
+              <span class="w-2 h-2 bg-red-500 rounded-full"></span>${totalAlpha}
+            </span>
           </div>
-        `;
-      }
-    } else {
-      throw new Error(res.message || 'Unknown error');
-    }
-  } catch (err) {
-    console.error('Load rekap error:', err);
+        </div>
+      </div>
+    `;
+
+    listEl.innerHTML = html;
+
+  } catch (error) {
+    console.error('Error loading rekap:', error);
     listEl.innerHTML = `
-      <div class="text-center text-red-400 py-8">
-        <i class="fa-solid fa-circle-exclamation text-3xl mb-2"></i>
-        <p class="text-sm">Gagal memuat data</p>
-        <p class="text-xs mt-1">${err.message}</p>
+      <div class="text-center py-8">
+        <i class="fa-solid fa-circle-exclamation text-5xl text-red-500 mb-3"></i>
+        <h3 class="font-bold text-gray-800 dark:text-white mb-1">Gagal Memuat Data</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${error.message}</p>
+        <button onclick="loadRekap('${bulan}')" class="bg-red-800 hover:bg-red-900 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow-sm">
+          <i class="fa-solid fa-rotate-right mr-2"></i>Coba Lagi
+        </button>
       </div>
     `;
   }
+}
+
+function animateValue(id, start, end, duration) {
+  const obj = document.getElementById(id);
+  if (!obj) return;
+  
+  const range = end - start;
+  if (range === 0) {
+    obj.textContent = end;
+    return;
+  }
+  
+  const minTimer = 50;
+  let stepTime = Math.abs(Math.floor(duration / range));
+  stepTime = Math.max(stepTime, minTimer);
+  
+  let startTime = new Date().getTime();
+  let endTime = startTime + duration;
+  let timer;
+  
+  function run() {
+    let now = new Date().getTime();
+    let remaining = Math.max((endTime - now) / duration, 0);
+    let value = Math.round(end - (remaining * range));
+    obj.textContent = value;
+    if (value == end) {
+      clearInterval(timer);
+    }
+  }
+  
+  timer = setInterval(run, stepTime);
+  run();
 }
 
 // ============================================
@@ -1461,12 +1818,22 @@ async function cekStatus() {
 
 async function api(action, data = {}) {
   try {
-    const res = await fetch(URL_GAS, {
+    // Tambahkan timestamp untuk bypass cache
+    const url = URL_GAS + '?t=' + Date.now();
+    
+    const res = await fetch(url, {
       method: 'POST',
+      // JANGAN gunakan headers Content-Type - GAS akan otomatis parse
       body: JSON.stringify({ action, ...data })
     });
+    
+    if (!res.ok) {
+      throw new Error('HTTP error! status: ' + res.status);
+    }
+    
     return await res.json();
   } catch (e) {
+    console.error('API Error:', e);
     toast('Koneksi gagal: ' + e.message);
     return { status: 'error', message: e.message };
   }
@@ -1486,6 +1853,6 @@ window.addEventListener('popstate', function(event) {
 // ============================================
 // INIT
 // ============================================
-console.log('Starting app...');
+console.log('🚀 Starting app...');
 history.pushState({ page: currentPage }, '', '');
 render();
