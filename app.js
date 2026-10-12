@@ -2,9 +2,9 @@
 // KONFIGURASI & VARIABEL GLOBAL
 // ============================================
 const URL_GAS = 'https://script.google.com/macros/s/AKfycbySOy0DGZWfuTLBjPQlgau1VSgOlMf9fi9z_Sx1jJAQDbI_Uyu5WXDEhDHqYOVpZJSM/exec';
-console.log('🚀 App.js loaded - v1.2 Optimized');
+console.log(' App.js loaded - v1.3 Emergency Fix');
 
-// Debug connection (Dioptimasi: dijalankan setelah delay agar tidak memblokir render awal)
+// Debug connection
 async function testConnection() {
   try {
     const response = await fetch(URL_GAS, {
@@ -18,7 +18,6 @@ async function testConnection() {
     console.error('❌ Connection FAILED:', err);
   }
 }
-// ⚡ OPTIMASI: Delay test koneksi agar UI muncul lebih dulu
 setTimeout(() => { testConnection(); }, 2000);
 
 let user = JSON.parse(localStorage.getItem('user') || 'null');
@@ -160,7 +159,7 @@ async function login() {
 function logout() {
   if (confirm('Yakin mau logout?')) {
     localStorage.removeItem('user');
-    localStorage.removeItem('gps'); // ⚡ OPTIMASI: Bersihkan cache GPS saat logout
+    localStorage.removeItem('gps');
     user = null;
     currentPage = 'home';
     render();
@@ -230,7 +229,6 @@ function renderDashboard() {
       <span class="text-xs font-semibold">Home</span>
     </button>
     <button onclick="switchPage('rekap')" class="flex flex-col items-center py-2 ${currentPage === 'rekap' ? 'text-red-800' : 'text-gray-500'}">
-      <!-- ⚡ OPTIMASI: Path lokal agar di-cache Service Worker -->
       <img src="./icon-rekap.png" class="w-6 h-6 mb-1 ${currentPage === 'rekap' ? '' : 'opacity-50'}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <i class="fa-solid fa-table text-xl mb-1 hidden"></i>
       <span class="text-xs font-semibold">Rekap</span>
@@ -474,7 +472,15 @@ function switchPage(page) {
 // HOME PAGE
 // ============================================
 function renderHome() {
-  const { bisaIn = false, bisaOut = false, lock12Jam = false, sisaJam = 0, jamMasuk = '--:--', jamPulang = '--:--' } = statusServer;
+  // ⚡ FIX: Pastikan semua property ada dengan default values
+  const { 
+    bisaIn = true,      // Default true agar bisa absen
+    bisaOut = false, 
+    lock12Jam = false, 
+    sisaJam = 0, 
+    jamMasuk = '--:--', 
+    jamPulang = '--:--' 
+  } = statusServer || {};
 
   return `
   <div class="bg-gradient-to-br from-red-800 to-red-900 text-white p-5 rounded-3xl shadow-2xl mb-5 relative overflow-hidden">
@@ -536,12 +542,13 @@ function renderHome() {
   </div>
 
   <div class="grid grid-cols-2 gap-4">
-    <button onclick="bukaKameraAbsen('IN')" ${!bisaIn ? 'disabled' : ''} class="${bisaIn ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'} text-white p-4 rounded-2xl font-bold shadow-lg transition flex flex-col items-center gap-2">
+    <button onclick="bukaKameraAbsen('IN')" 
+      class="bg-green-600 hover:bg-green-700 active:scale-95 text-white p-4 rounded-2xl font-bold shadow-lg transition flex flex-col items-center gap-2">
       <i class="fa-solid fa-right-to-bracket text-2xl"></i>
       <span>Absen Masuk</span>
-      ${lock12Jam ? `<span class="text-[10px] bg-black/20 px-2 py-0.5 rounded-full">Tersedia dalam ${sisaJam} jam</span>` : ''}
     </button>
-    <button onclick="bukaKameraAbsen('OUT')" ${!bisaOut ? 'disabled' : ''} class="${bisaOut ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-400 cursor-not-allowed'} text-white p-4 rounded-2xl font-bold shadow-lg transition flex flex-col items-center gap-2">
+    <button onclick="bukaKameraAbsen('OUT')" 
+      class="bg-red-600 hover:bg-red-700 active:scale-95 text-white p-4 rounded-2xl font-bold shadow-lg transition flex flex-col items-center gap-2">
       <i class="fa-solid fa-right-from-bracket text-2xl"></i>
       <span>Absen Pulang</span>
     </button>
@@ -781,7 +788,7 @@ function animateValue(id, start, end, duration) {
 }
 
 // ============================================
-// PATROLI, KEJADIAN, PEMBINAAN (Dipertahankan Fungsinya)
+// PATROLI, KEJADIAN, PEMBINAAN
 // ============================================
 function renderPatroli() {
   return `<div class="space-y-4"><div class="flex justify-between items-center"><h2 class="text-xl font-bold text-gray-800 dark:text-white">Patroli</h2><button onclick="openFormPatroli()" class="bg-red-800 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-900 transition"><i class="fa-solid fa-plus mr-1"></i>Tambah</button></div><div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow"><div id="listPatroli" class="space-y-2"><div class="text-center text-gray-400 py-8"><i class="fa-solid fa-spinner fa-spin text-3xl mb-2"></i><p class="text-sm">Loading data...</p></div></div></div></div>`;
@@ -898,10 +905,9 @@ async function simpanPembinaan() {
 }
 
 // ============================================
-// GPS & LOCATION (⚡ OPTIMASI: Non-blocking & Cached)
+// GPS & LOCATION
 // ============================================
 function dapatkanLokasiGPS() {
-  // 1. Tampilkan cache terakhir segera agar UI tidak kosong
   const cachedGps = localStorage.getItem('gps');
   if (cachedGps) {
     currentLocation = JSON.parse(cachedGps);
@@ -912,7 +918,6 @@ function dapatkanLokasiGPS() {
   }
 
   if (navigator.geolocation) {
-    // 2. ⚡ OPTIMASI: Timeout dikurangi jadi 10000ms (10 detik) agar tidak hang
     navigator.geolocation.getCurrentPosition(
       (position) => {
         currentLocation.lat = position.coords.latitude.toFixed(6);
@@ -926,7 +931,6 @@ function dapatkanLokasiGPS() {
         const gpsDetail = document.getElementById('gpsDetail');
         if (gpsDetail) gpsDetail.textContent = currentLocation.alamat;
 
-        // 3. ⚡ OPTIMASI: Panggil API setting di background TANPA await (tidak memblokir UI)
         loadSettingGPS(); 
         
         const gpsEl = document.getElementById('previewGps');
@@ -941,14 +945,13 @@ function dapatkanLokasiGPS() {
         const gpsDetail = document.getElementById('gpsDetail');
         if (gpsDetail) gpsDetail.textContent = "Gagal mendapatkan lokasi";
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 } // ⚡ OPTIMASI: Tambah maximumAge agar pakai cache browser jika baru
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   } else {
     currentLocation.alamat = "Browser tidak mendukung GPS";
   }
 }
 
-// Fungsi baru terpisah untuk load setting agar tidak memblokir render
 async function loadSettingGPS() {
   try {
     const setting = await api('getSetting', {});
@@ -989,7 +992,7 @@ function updateGpsCard(jarak, radius) {
 }
 
 // ============================================
-// KAMERA & CAPTURE (⚡ OPTIMASI: Resolusi & Kompresi)
+// KAMERA & CAPTURE
 // ============================================
 function bukaKameraAbsen(type) {
   currentCamMode = 'absen';
@@ -1088,8 +1091,6 @@ async function capture() {
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Proses...';
 
   const ctx = canvas.getContext('2d');
-  
-  // ⚡ OPTIMASI: MAX_WIDTH diturunkan dari 800 ke 600 agar file lebih kecil tapi tetap jelas untuk absensi
   const MAX_WIDTH = 600;
   let width = video.videoWidth;
   let height = video.videoHeight;
@@ -1145,7 +1146,6 @@ async function capture() {
   ctx.font = `${12 * scale}px Courier New`;
   ctx.fillText(`GPS: ${currentLocation.lat}, ${currentLocation.long}`, textX, textY);
 
-  // ⚡ OPTIMASI: Kualitas JPEG diturunkan dari 0.75 ke 0.6. Ukuran file bisa turun 40-50% tanpa mengorbankan kejelasan wajah.
   const fotoBase64 = canvas.toDataURL('image/jpeg', 0.6);
   closeCam();
 
@@ -1289,18 +1289,51 @@ async function gantiPassword() {
 async function cekStatus() {
   try {
     const res = await api('cekStatus', { username: user.username });
+    console.log('📊 Response cekStatus:', res);
+    
     if (res.status === 'success') {
-      statusServer = res;
+      // ⚡ FIX: Pastikan semua property ada dengan default values
+      statusServer = {
+        bisaIn: res.bisaIn || false,
+        bisaOut: res.bisaOut || false,
+        lock12Jam: res.lock12Jam || false,
+        sisaJam: res.sisaJam || 0,
+        jamMasuk: res.jamMasuk || '--:--',
+        jamPulang: res.jamPulang || '--:--',
+        ...res
+      };
+      
       const contentArea = document.getElementById('contentArea');
       if (contentArea && currentPage === 'home') {
         contentArea.innerHTML = renderPage();
         loadHomeStats();
       }
     } else {
-      toast(res.message);
+      //  FIX: Jika error, set default values agar user tetap bisa absen
+      statusServer = {
+        bisaIn: true,
+        bisaOut: false,
+        lock12Jam: false,
+        sisaJam: 0,
+        jamMasuk: '--:--',
+        jamPulang: '--:--'
+      };
+      toast('Mode darurat: Silakan absen manual');
+      renderDashboard();
     }
   } catch (e) {
     console.error('Cek status error:', e);
+    // ⚡ FIX: Fallback total jika server error
+    statusServer = {
+      bisaIn: true,
+      bisaOut: false,
+      lock12Jam: false,
+      sisaJam: 0,
+      jamMasuk: '--:--',
+      jamPulang: '--:--'
+    };
+    toast('Koneksi bermasalah - mode offline');
+    renderDashboard();
   }
 }
 
