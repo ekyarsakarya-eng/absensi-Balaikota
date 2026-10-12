@@ -1,12 +1,17 @@
 // Service Worker untuk Absensi BLKT
-const CACHE_NAME = 'absensi-blkt-v7';
+const CACHE_NAME = 'absensi-blkt-v8'; // DIUBAH ke v8 untuk force update
 const urlsToCache = [
   './',
   './index.html',
   './app.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-home.png',
+  './icon-rekap.png',
+  './icon-patroli.png',
+  './icon-kejadian.png',
+  './icon-pembinaan.png'
 ];
 
 // Install SW
