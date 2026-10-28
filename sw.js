@@ -1,5 +1,5 @@
 // Service Worker untuk Absensi BLKT
-const CACHE_NAME = 'absensi-blkt-v8'; // DIUBAH ke v8 untuk force update
+const CACHE_NAME = 'absensi-blkt-cache'; // Generik, tidak perlu ubah versi manual
 const urlsToCache = [
   './',
   './index.html',
@@ -54,7 +54,7 @@ self.addEventListener('fetch', event => {
     fetch(event.request)
       .then(response => {
         // Clone response untuk cache
-        if (response.status === 200) {
+        if (response && response.status === 200) {
           const responseClone = response.clone();
           caches.open(CACHE_NAME).then(cache => {
             cache.put(event.request, responseClone);
