@@ -1077,7 +1077,7 @@ function updateTimemark() {
   animationFrame = requestAnimationFrame(updateTimemark);
 }
 
-function capture() {
+async function capture() {
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvas');
   const btn = document.getElementById('btnCapture');
