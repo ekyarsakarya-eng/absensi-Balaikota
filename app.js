@@ -26,6 +26,15 @@ let lokasiKerjaDipilih = localStorage.getItem('lokasiKerjaDipilih') || '';
 let tanggalLokasiKerja = localStorage.getItem('tanggalLokasiKerja') || '';
 const todayString = new Date().toDateString();
 
+// === JAM REAL-TIME GLOBAL (hanya jalan sekali saat app dimuat) ===
+setInterval(() => {
+  const jamEl = document.getElementById('jamRealtime');
+  if (jamEl) {
+    const now = new Date();
+    jamEl.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+  }
+}, 1000);
+
 // ============================================
 // PWA INSTALL UNIVERSAL
 // ============================================
@@ -639,16 +648,7 @@ function renderHome() {
     </div>
   </div>
   `;
-  
-  // Hidupkan jam real-time
-  setInterval(() => {
-    const jamEl = document.getElementById('jamRealtime');
-    if (jamEl) {
-      const now = new Date();
-      jamEl.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
-    }
-  }, 1000);
-}
+  }
 
 function getStatusText(jamMasuk, jamPulang) {
   if (jamMasuk !== '--:--' && jamPulang === '--:--') return ' Sedang Bekerja';
