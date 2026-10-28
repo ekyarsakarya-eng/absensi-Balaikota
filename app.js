@@ -639,6 +639,15 @@ function renderHome() {
     </div>
   </div>
   `;
+  
+  // Hidupkan jam real-time
+  setInterval(() => {
+    const jamEl = document.getElementById('jamRealtime');
+    if (jamEl) {
+      const now = new Date();
+      jamEl.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+    }
+  }, 1000);
 }
 
 function getStatusText(jamMasuk, jamPulang) {
