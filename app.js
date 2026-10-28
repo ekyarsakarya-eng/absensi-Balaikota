@@ -465,6 +465,10 @@ function switchPage(page) {
 // MODAL PILIH LOKASI KERJA
 // ============================================
 function tampilkanModalPilihLokasi() {
+  // Hapus modal lama jika ada (cegah duplikat)
+  const modalLama = document.getElementById('modalLokasi');
+  if (modalLama) modalLama.remove();
+  
   const options = daftarLokasiKerja.map(l => `<option value="${l.nama}">${l.nama}</option>`).join('');
   
   const modalHTML = `
@@ -484,27 +488,38 @@ function tampilkanModalPilihLokasi() {
         ${options}
       </select>
       
-      <button onclick="simpanPilihanLokasi()" class="w-full bg-red-800 hover:bg-red-900 text-white p-3 rounded-lg font-bold transition shadow-lg">
+      <button id="btnKonfirmasiLokasi" class="w-full bg-red-800 hover:bg-red-900 text-white p-3 rounded-lg font-bold transition shadow-lg">
         <i class="fa-solid fa-check mr-2"></i>Konfirmasi & Lanjut
       </button>
     </div>
   </div>`;
   
   document.body.insertAdjacentHTML('beforeend', modalHTML);
-}
-
-function simpanPilihanLokasi() {
-  const lokasi = document.getElementById('selectLokasiUser').value;
-  if (!lokasi) return toast('Silakan pilih lokasi kerja terlebih dahulu');
   
-  lokasiKerjaDipilih = lokasi;
-  tanggalLokasiKerja = todayString;
-  localStorage.setItem('lokasiKerjaDipilih', lokasiKerjaDipilih);
-  localStorage.setItem('tanggalLokasiKerja', tanggalLokasiKerja);
-  
-  document.getElementById('modalLokasi').remove();
-  toast('Lokasi kerja berhasil disimpan untuk hari ini');
-  renderDashboard();
+  // Bind event listener ke tombol (lebih aman dari onclick inline)
+  const btn = document.getElementById('btnKonfirmasiLokasi');
+  if (btn) {
+    btn.onclick = function() {
+      const selectEl = document.getElementById('selectLokasiUser');
+      const lokasi = selectEl ? selectEl.value : '';
+      
+      if (!lokasi) {
+        toast('Silakan pilih lokasi kerja terlebih dahulu');
+        return;
+      }
+      
+      lokasiKerjaDipilih = lokasi;
+      tanggalLokasiKerja = todayString;
+      localStorage.setItem('lokasiKerjaDipilih', lokasiKerjaDipilih);
+      localStorage.setItem('tanggalLokasiKerja', tanggalLokasiKerja);
+      
+      const modal = document.getElementById('modalLokasi');
+      if (modal) modal.remove();
+      
+      toast('✅ Lokasi kerja: ' + lokasi);
+      renderDashboard();
+    };
+  }
 }
 
 function gantiLokasiKerja() {
