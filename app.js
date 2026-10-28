@@ -37,6 +37,10 @@ let dataPatroli = [];
 let dataKejadian = [];
 let dataPembinaan = [];
 let selectedMonth = '';
+let daftarLokasiKerja = [];
+let lokasiKerjaDipilih = localStorage.getItem('lokasiKerjaDipilih') || '';
+let tanggalLokasiKerja = localStorage.getItem('tanggalLokasiKerja') || '';
+const todayString = new Date().toDateString();
 
 // ============================================
 // PWA INSTALL UNIVERSAL
@@ -266,7 +270,12 @@ function renderDashboard() {
   if (currentPage === 'kejadian') loadKejadian();
   if (currentPage === 'pembinaan') loadPembinaan();
 }
-
+if (daftarLokasiKerja.length === 0) {
+    api('getLokasiKerja', {}).then(res => {
+      if (res.status === 'success') daftarLokasiKerja = res.data;
+    });
+  }
+}
 function renderModals() {
   return `
   <!-- MODAL KAMERA -->
@@ -867,7 +876,8 @@ async function capture() {
       tipeAbsen: currentType,
       foto: fotoBase64,
       lat: currentLocation.lat,
-      long: currentLocation.long
+      long: currentLocation.long,
+      lokasiKerja: lokasiKerjaDipilih // <--- TAMBAHKAN BARIS INI
     });
     toast(res.message);
     if (res.status === 'success') cekStatus();
@@ -1504,6 +1514,92 @@ function openFormKejadian() {
   document.getElementById('modalKejadian').classList.replace('hidden', 'flex');
 }
 
+function tampilkanModalPilihLokasi() {
+  const options = daftarLokasiKerja.map(l => `<option value="${l.nama}">${l.nama}</option>`).join('');
+  
+  const modalHTML = `
+  <div id="modalLokasi" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <div class="text-center mb-4">
+        <div class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full mx-auto flex items-center justify-center mb-3">
+          <i class="fa-solid fa-map-location-dot text-red-800 dark:text-red-400 text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-900 dark:text-white">Pilih Lokasi Kerja</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Pilih lokasi Anda bekerja hari ini. Koordinat GPS akan dikunci sesuai lokasi ini.</p>
+      </div>
+      
+      <label class="text-xs font-bold text-gray-700 dark:text-gray-300 mb-1 block">Lokasi Kerja</label>
+      <select id="selectLokasiUser" class="w-full p-3 border border-gray-300 rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-4 focus:ring-2 focus:ring-red-800 outline-none">
+        <option value="">-- Pilih Lokasi --</option>
+        ${options}
+      </select>
+      
+      <button onclick="simpanPilihanLokasi()" class="w-full bg-red-800 hover:bg-red-900 text-white p-3 rounded-lg font-bold transition shadow-lg">
+        <i class="fa-solid fa-check mr-2"></i>Konfirmasi & Lanjut
+      </button>
+    </div>
+  </div>`;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function simpanPilihanLokasi() {
+  const lokasi = document.getElementById('selectLokasiUser').value;
+  if (!lokasi) return toast('Silakan pilih lokasi kerja terlebih dahulu');
+  
+  lokasiKerjaDipilih = lokasi;
+  tanggalLokasiKerja = todayString;
+  localStorage.setItem('lokasiKerjaDipilih', lokasiKerjaDipilih);
+  localStorage.setItem('tanggalLokasiKerja', tanggalLokasiKerja);
+  
+  document.getElementById('modalLokasi').remove();
+  toast('Lokasi kerja berhasil disimpan untuk hari ini');
+  renderDashboard(); // Refresh tampilan
+}
+
+function gantiLokasiKerja() {
+  tanggalLokasiKerja = ''; // Reset agar modal muncul lagi
+  tampilkanModalPilihLokasi();
+}
+
+function renderHome() {
+  // Cek apakah perlu memilih lokasi hari ini
+  if (tanggalLokasiKerja !== todayString || !lokasiKerjaDipilih) {
+    // Ambil data lokasi dulu jika belum ada
+    if (daftarLokasiKerja.length === 0) {
+      api('getLokasiKerja', {}).then(res => {
+        if (res.status === 'success') {
+          daftarLokasiKerja = res.data;
+          tampilkanModalPilihLokasi();
+        }
+      });
+    } else {
+      tampilkanModalPilihLokasi();
+    }
+  }
+
+  const { bisaIn = false, bisaOut = false, lock12Jam = false, sisaJam = 0, jamMasuk = '--:--', jamPulang = '--:--' } = statusServer;
+
+  return `
+  <!-- ... (Bagian Header Jam & Status tetap sama) ... -->
+  
+  <!-- KARTU LOKASI KERJA BARU -->
+  <div class="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 p-4 rounded-2xl mb-5 flex items-center gap-3">
+    <div class="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center flex-shrink-0">
+      <i class="fa-solid fa-map-pin text-blue-600 dark:text-blue-300"></i>
+    </div>
+    <div class="flex-1">
+      <p class="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Lokasi Kerja Aktif</p>
+      <p class="text-sm font-bold text-gray-800 dark:text-white">${lokasiKerjaDipilih || 'Belum dipilih'}</p>
+    </div>
+    <button onclick="gantiLokasiKerja()" class="text-xs text-blue-600 dark:text-blue-400 font-semibold underline px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+      Ganti
+    </button>
+  </div>
+
+  <!-- ... (Bagian Tombol Absen Masuk/Pulang tetap sama) ... -->
+  `;
+}
 function closeFormKejadian() {
   document.getElementById('modalKejadian').classList.replace('flex', 'hidden');
   document.getElementById('kejadianJenis').value = '';
