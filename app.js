@@ -1371,45 +1371,43 @@ history.pushState({ page: currentPage }, '', '');
 render();
 
 // ============================================
-// AUTO-UPDATE NOTIFICATION (Service Worker)
+// TRUE AUTO-UPDATE (Cek Otomatis Setiap 5 Menit)
 // ============================================
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').then(registration => {
-    console.log('✅ Service Worker terdaftar');
-    
-    // Cek update otomatis setiap 3 menit
-    setInterval(() => {
-      registration.update();
-    }, 3 * 60 * 1000);
-    
-    // Dengarkan jika ada Service Worker baru yang di-install
-    registration.addEventListener('updatefound', () => {
-      const newWorker = registration.installing;
-      newWorker.addEventListener('statechange', () => {
-        // Jika SW baru sudah ter-install dan ada controller lama (artinya ini update, bukan install pertama)
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          showUpdateNotif();
-        }
-      });
-    });
-  }).catch(err => {
-    console.log('❌ Gagal mendaftar Service Worker:', err);
-  });
-  
-  // Opsional: Auto reload jika controller berubah (fallback)
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('🔄 Service Worker baru aktif, me-reload...');
-    window.location.reload();
-  });
+async function cekUpdateOtomatis() {
+  try {
+    // 1. Minta info file app.js terbaru dari server (tanpa download full, cuma cek tanggal)
+    const res = await fetch('./app.js?t=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
+    const tanggalServer = res.headers.get('Last-Modified');
+    const tanggalDisimpan = localStorage.getItem('tanggalAppTerakhir');
+
+    // 2. Jika tanggal di server BEDA dengan yang ada di HP user, berarti ada update!
+    if (tanggalDisimpan && tanggalServer !== tanggalDisimpan) {
+      console.log('🚀 Update terdeteksi!');
+      tampilkanNotifUpdate();
+    }
+
+    // 3. Simpan tanggal terbaru ke memori HP user
+    if (tanggalServer) {
+      localStorage.setItem('tanggalAppTerakhir', tanggalServer);
+    }
+  } catch (e) {
+    // Diamkan jika offline/error
+  }
 }
 
-// Fungsi menampilkan notifikasi update
-function showUpdateNotif() {
-  // Cek agar tidak muncul dobel
-  if (document.getElementById('updateNotif')) return;
+// Jalankan pengecekan pertama kali saat aplikasi dibuka
+cekUpdateOtomatis();
+
+// Ulangi pengecekan setiap 5 menit (300.000 ms)
+setInterval(cekUpdateOtomatis, 5 * 60 * 1000);
+
+
+// --- Fungsi Tampilan Notifikasi ---
+function tampilkanNotifUpdate() {
+  if (document.getElementById('notifUpdate')) return; // Mencegah dobel
   
   const html = `
-  <div id="updateNotif" class="fixed top-4 left-4 right-4 max-w-md mx-auto bg-green-600 text-white p-4 rounded-xl shadow-2xl z-[9999] flex items-center justify-between" style="animation: slideDown 0.4s ease-out;">
+  <div id="notifUpdate" class="fixed top-4 left-4 right-4 max-w-md mx-auto bg-green-600 text-white p-4 rounded-xl shadow-2xl z-[9999] flex items-center justify-between" style="animation: slideDown 0.4s ease-out;">
     <div class="flex items-center gap-3">
       <i class="fa-solid fa-rotate text-2xl animate-spin"></i>
       <div>
@@ -1417,39 +1415,27 @@ function showUpdateNotif() {
         <p class="text-xs opacity-90">Klik tombol di kanan untuk memperbarui</p>
       </div>
     </div>
-    <button onclick="forceUpdate()" class="bg-white text-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-gray-100 transition shadow-md whitespace-nowrap">
+    <button onclick="paksaUpdate()" class="bg-white text-green-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-gray-100 transition shadow-md whitespace-nowrap">
       Update
     </button>
   </div>`;
-  
   document.body.insertAdjacentHTML('beforeend', html);
   
-  // Auto-hide setelah 10 detik jika user tidak klik
+  // Hilang otomatis setelah 15 detik
   setTimeout(() => {
-    const notif = document.getElementById('updateNotif');
-    if (notif) { 
-      notif.style.transition = 'opacity 0.5s, transform 0.5s';
-      notif.style.opacity = '0';
-      notif.style.transform = 'translateY(-20px)';
-      setTimeout(() => notif.remove(), 500); 
-    }
-  }, 10000);
+    const n = document.getElementById('notifUpdate');
+    if (n) { n.style.opacity = '0'; setTimeout(() => n.remove(), 500); }
+  }, 15000);
 }
 
-// Fungsi memaksa reload dan membersihkan registrasi lama
-function forceUpdate() {
-  const notif = document.getElementById('updateNotif');
-  if (notif) notif.remove();
-  
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(registrations => {
-      registrations.forEach(registration => {
-        registration.unregister();
-      });
-      // Reload halaman untuk mengambil file terbaru
-      window.location.reload(true); // true = force reload dari server
+function paksaUpdate() {
+  const n = document.getElementById('notifUpdate');
+  if (n) n.remove();
+  // Hapus cache dan reload paksa dari server
+  if ('caches' in window) {
+    caches.keys().then(names => {
+      names.forEach(name => caches.delete(name));
     });
-  } else {
-    window.location.reload(true);
   }
+  window.location.reload(true);
 }
