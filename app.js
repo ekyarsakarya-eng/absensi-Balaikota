@@ -102,9 +102,9 @@ function renderLogin() {
   <div class="flex items-center justify-center min-h-screen p-4 bg-gradient-to-br from-red-800 to-red-900">
     <div class="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
       <div class="text-center mb-6">
-        <div class="bg-red-800 w-16 h-16 rounded-full mx-auto flex items-center justify-center mb-3 shadow-lg">
-          <i class="fa-solid fa-fingerprint text-white text-2xl"></i>
-        </div>
+        <div class="w-20 h-20 mx-auto mb-3">
+  <img src="./logo-AKI.png" alt="Logo" class="w-full h-full object-contain">
+</div>
         <h1 class="text-2xl font-bold text-red-800 dark:text-white">Absensi Karyawan</h1>
         <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Silakan login untuk absen</p>
       </div>
